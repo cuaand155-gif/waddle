@@ -272,6 +272,10 @@ const updateAccount = (user) => {
   document.getElementById("accountStatusDetail").textContent = signedIn ? `${displayName} connected` : "Your local planner session is active.";
   document.getElementById("profileName").textContent = signedIn ? displayName : "Alex Morgan";
   document.getElementById("profileSubtitle").textContent = signedIn ? "Google account" : "Personal space";
+  document.getElementById("profileAuthStatus").textContent = signedIn ? "Signed in with Google" : "Not signed in";
+  document.getElementById("profileAuthDetail").textContent = signedIn ? `${displayName} connected` : "Connect Google to sync your profile.";
+  document.getElementById("profileGoogleSignInButton").hidden = signedIn;
+  document.getElementById("profileSignOutButton").hidden = !signedIn;
 };
 
 if (supabaseClient) {
@@ -289,11 +293,11 @@ if (supabaseClient) {
   supabaseClient.auth.onAuthStateChange((_event, session) => updateAccount(session?.user));
 }
 
-googleSignInButton.addEventListener("click", async () => {
+const signInWithGoogle = async (button) => {
   if (!AUTH_CONFIG.configured) {
     document.getElementById("authNote").textContent = "Google sign-in is not connected yet. Add the Supabase URL and anon key, then wire the OAuth callback described in DEPLOY.md.";
     showToast("Google sign-in needs provider credentials first.");
-    return;
+    return false;
   }
 
   const { error } = await supabaseClient.auth.signInWithOAuth({
@@ -303,7 +307,21 @@ googleSignInButton.addEventListener("click", async () => {
   if (error) {
     document.getElementById("authNote").textContent = `Google sign-in could not start: ${error.message}`;
     showToast("Google sign-in could not start.");
+    return false;
   }
+  return true;
+};
+googleSignInButton.addEventListener("click", () => signInWithGoogle(googleSignInButton));
+document.getElementById("profileGoogleSignInButton").addEventListener("click", () => signInWithGoogle(document.getElementById("profileGoogleSignInButton")));
+document.getElementById("profileSignOutButton").addEventListener("click", async () => {
+  if (!supabaseClient) return;
+  const { error } = await supabaseClient.auth.signOut();
+  if (error) {
+    showToast("Could not sign out.");
+    return;
+  }
+  updateAccount(null);
+  showToast("Signed out of Google.");
 });
 
 document.querySelectorAll(".privacy-option").forEach((option) => {
