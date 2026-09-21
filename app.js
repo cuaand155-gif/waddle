@@ -14,6 +14,7 @@ const supabaseClient = AUTH_CONFIG.configured && window.supabase
 const toast = document.getElementById("toast");
 let workspaceState = null;
 let currentUser = null;
+let currentSession = null;
 
 const sampleState = {
   privacy: "busy",
@@ -206,25 +207,40 @@ profileForm.addEventListener("submit", (event) => {
   profileDialog.close();
   showToast("Profile saved. Friends will see your updated availability setting.");
 });
-document.getElementById("googleCalendarButton").addEventListener("click", async () => {
-  if (!supabaseClient) {
-    showToast("Connect the backend to sync Google Calendar availability.");
+const calendarSelection = document.getElementById("calendarSelection");
+const setCalendarConnected = (provider, connected) => {
+  const isGoogle = provider === "google";
+  document.getElementById(`${provider}CalendarStatus`).textContent = connected
+    ? `${isGoogle ? "Google" : "Apple"} Calendar · busy/free sync ready`
+    : isGoogle ? "Secure server connection · not connected" : "Prototype · secure backend required";
+  document.getElementById(`${provider}CalendarButton`).textContent = connected ? "Connected" : isGoogle ? "Connect" : "Learn how";
+  if (isGoogle) calendarSelection.hidden = !connected;
+};
+const requestCalendarConnection = async (provider) => {
+  if (provider === "apple") {
+    showToast("Apple Calendar needs a secure CalDAV or calendar-feed backend.");
     return;
   }
-  const { error } = await supabaseClient.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: `${window.location.origin}/?calendar=connected`,
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
-        scope: "https://www.googleapis.com/auth/calendar.readonly",
-      },
-    },
-  });
-  if (error) showToast("Google Calendar connection could not start.");
+  if (!currentUser) {
+    showToast("Sign in with Google before connecting a calendar.");
+    return;
+  }
+  try {
+    const response = await fetch(`/api/calendar/connect?provider=${provider}`, { headers: { Authorization: `Bearer ${currentSession?.access_token || ""}` } });
+    if (!response.ok) throw new Error("Calendar backend unavailable");
+    setCalendarConnected(provider, true);
+    showToast("Calendar connected. Only busy/free blocks are imported.");
+  } catch {
+    showToast("Calendar sync needs the secure server connection.");
+  }
+};
+document.getElementById("googleCalendarButton").addEventListener("click", () => requestCalendarConnection("google"));
+document.getElementById("appleCalendarButton").addEventListener("click", () => requestCalendarConnection("apple"));
+document.getElementById("refreshCalendars").addEventListener("click", () => showToast("Calendar refresh requested securely on the server."));
+document.getElementById("disconnectCalendar").addEventListener("click", () => {
+  setCalendarConnected("google", false);
+  showToast("Google Calendar disconnected from this workspace.");
 });
-document.getElementById("appleCalendarButton").addEventListener("click", () => showToast("Paste an iCloud read-only link in the next step."));
 document.getElementById("shareScheduleToggle").addEventListener("change", (event) => {
   const profile = { ...savedProfile, shareSchedule: event.target.checked };
   savedProfile = profile;
@@ -264,8 +280,9 @@ tentativePlanForm.addEventListener("submit", (event) => {
 });
 
 const googleSignInButton = document.getElementById("googleSignInButton");
-const updateAccount = (user) => {
+const updateAccount = (user, session = null) => {
   currentUser = user || null;
+  currentSession = session;
   const signedIn = Boolean(user);
   const displayName = user?.user_metadata?.full_name || user?.user_metadata?.name || "Google account";
   document.getElementById("accountStatus").textContent = signedIn ? "Signed in" : "Not signed in";
@@ -280,7 +297,7 @@ const updateAccount = (user) => {
 
 if (supabaseClient) {
   supabaseClient.auth.getSession().then(async ({ data }) => {
-    updateAccount(data.session?.user);
+    updateAccount(data.session?.user, data.session);
     if (data.session?.user) {
       const { data: profile } = await supabaseClient.from("profiles").select("display_name, photo_url, share_schedule").eq("id", data.session.user.id).maybeSingle();
       if (profile) {
@@ -290,11 +307,11 @@ if (supabaseClient) {
       }
     }
   });
-  supabaseClient.auth.onAuthStateChange((_event, session) => updateAccount(session?.user));
+  supabaseClient.auth.onAuthStateChange((_event, session) => updateAccount(session?.user, session));
 }
 
 const signInWithGoogle = async (button) => {
-  if (!AUTH_CONFIG.configured) {
+  if (!AUTH_CONFIG.configured || !supabaseClient) {
     document.getElementById("authNote").textContent = "Google sign-in is not connected yet. Add the Supabase URL and anon key, then wire the OAuth callback described in DEPLOY.md.";
     showToast("Google sign-in needs provider credentials first.");
     return false;
@@ -320,7 +337,7 @@ document.getElementById("profileSignOutButton").addEventListener("click", async 
     showToast("Could not sign out.");
     return;
   }
-  updateAccount(null);
+  updateAccount(null, null);
   showToast("Signed out of Google.");
 });
 

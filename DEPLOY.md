@@ -9,7 +9,7 @@ Hangout Planner has no frontend build step, but it now uses a small serverless A
 3. Add `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` as server-side environment variables in your host. Copy the names from [`.env.example`](.env.example); never expose the service-role key in browser code.
 4. Redeploy. Without these variables, the UI intentionally falls back to demo data and does not persist changes between visitors.
 
-The schema also includes profiles (display name, photo URL, and schedule visibility), friend requests, and calendar connection records. Google Calendar OAuth still requires enabling the Google provider and Calendar scope in Supabase; the UI deliberately explains that requirement instead of pretending a calendar was connected. The current prototype keeps profile edits and friend invites in local storage until the signed-in Supabase user flow is connected to those tables.
+The schema also includes profiles (display name, photo URL, and schedule visibility), friend requests, and calendar connection records. Calendar access must be implemented by a server-side `/api/calendar/connect` flow: exchange provider authorization codes on the server, encrypt refresh tokens, fetch events there, and return only normalized busy/free blocks. Do not request Google Calendar scope from the browser or store provider tokens in local storage. Apple Calendar is currently a labeled prototype state; production support should use a secure iCloud/CalDAV or calendar-feed service and never request an Apple ID password.
 
 ## Vercel
 
@@ -43,7 +43,7 @@ GitHub Pages can host the frontend only. It cannot run the included serverless A
 
 ## Google sign-in setup
 
-The account entry point and **Continue with Google** action are present, but Google OAuth is intentionally not enabled in this repository. `app.js` contains the small `AUTH_CONFIG` section and currently keeps `configured: false`; clicking the action explains that credentials are missing instead of pretending that a user signed in.
+The account entry point and **Continue with Google** action use Supabase Auth. The public Supabase URL and publishable key are browser-safe; Google provider credentials remain in Supabase and are never placed in this repository.
 
 For a static site or Vercel deployment, [Supabase Auth](https://supabase.com/docs/guides/auth/social-login/auth-google) is the recommended next step:
 
@@ -65,7 +65,18 @@ For a static site or Vercel deployment, [Supabase Auth](https://supabase.com/doc
    For Vercel, store the same values as `SUPABASE_URL` and `SUPABASE_ANON_KEY` environment variables and expose them through the static build/config step. Never put a Supabase service-role key or Google client secret in browser code.
 5. Subscribe to `supabase.auth.onAuthStateChange` and update the account dialog/profile from the returned session. Keep the signed-out state as the fallback when there is no session.
 
-The current app has no Supabase client, OAuth callback, backend session, or real Google credential. Until those steps are completed, the rest of the planner remains a local visual prototype and no account data is persisted remotely.
+Google account sign-in is separate from calendar access. The browser uses Supabase Auth for the user session, while Google Calendar credentials and synchronization must remain on the server. The current UI reports a backend-unavailable state until `/api/calendar/connect` and the corresponding refresh/disconnect handlers are backed by a real token store. The included endpoint intentionally returns `501` until configured; it does not claim that a calendar is live merely because a user signed in.
+
+## Calendar backend requirements
+
+Before enabling live synchronization, implement the server-side calendar layer behind the existing API boundary:
+
+- Google: complete the OAuth authorization-code exchange on the server, store encrypted refresh tokens keyed to the authenticated Supabase user, fetch selected calendars through the Google Calendar API, and normalize events to busy/free intervals.
+- Apple: use a server-side iCloud/CalDAV integration or a read-only calendar-feed workflow. Never ask for or store an Apple ID password, and never use EventKit in this web app.
+- Provider controls: implement connect, refresh, reconnect, disconnect, and selected-calendar endpoints. Return only calendar names/IDs needed for selection and busy/free blocks for availability; never return event titles, descriptions, attendees, locations, notes, or meeting links.
+- Suggested server environment values: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `CALENDAR_TOKEN_ENCRYPTION_KEY`, and the provider-specific Apple/CalDAV service credentials. Keep all of them server-only.
+
+Until this backend is implemented, the Google card is an integration-ready connection state and the Apple card is a clearly labeled prototype flow.
 
 ## Local preview
 
