@@ -687,3 +687,5 @@ section.free-now::-webkit-scrollbar{display:none}
 #googleCalendarState.is-problem{color:var(--danger)}
 .slot.no-times{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--ink) 4%,transparent) 6px 7px)}.legend-dot.no-times{border:1px dashed var(--rule);background:transparent}.grid-empty{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 17px 12px;padding:12px 14px;border:1px dashed var(--rule);border-radius:10px;color:var(--muted);font-size:12px}.grid-empty p{margin:0}
 .booking-days{padding-right:28px;-webkit-mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(to right,#000 calc(100% - 40px),transparent)}
+.vote-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}.suggest-time{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) auto;gap:8px;align-items:end;margin-top:10px}.suggest-time .field-label{margin-top:0}@media(max-width:620px){.suggest-time{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.suggest-time button{grid-column:1/-1}}
+.suggest-time .text-input,#planSetFields .text-input{min-width:0}
