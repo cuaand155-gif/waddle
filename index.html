@@ -92,7 +92,7 @@
               <p class="hero-copy">Find a moment that works for everyone, then fill it with something worth remembering.</p>
             </div>
             <div class="hero-actions">
-              <button class="outline-button member-only" id="tentativePlanButton"><svg class="icon" aria-hidden="true"><use href="#i-calendar"/></svg> Set a tentative plan</button>
+              <button class="outline-button member-only" id="tentativePlanButton"><svg class="icon" aria-hidden="true"><use href="#i-calendar"/></svg> Make a plan</button>
               <button class="primary-button" id="inviteButton"><svg class="icon" aria-hidden="true"><use href="#i-user-plus"/></svg> Invite a friend</button>
             </div>
           </section>
@@ -148,10 +148,19 @@
             <article class="tentative-card">
               <div class="tentative-icon"><svg class="icon" aria-hidden="true"><use href="#i-calendar"/></svg></div>
               <div class="tentative-details">
-                <span class="tentative-label">TENTATIVE PLAN</span>
+                <span class="tentative-label" id="tentativeLabel">TENTATIVE PLAN</span>
                 <h3 id="tentativeTitle"></h3>
                 <p id="tentativeTiming"></p>
                 <div class="best-time" id="bestTime" hidden></div>
+                <div class="vote-actions" id="voteActions" hidden>
+                  <button class="outline-button" type="button" id="voteOnTime" aria-expanded="false" aria-controls="tentativeSuggestions"><svg class="icon" aria-hidden="true"><use href="#i-heart"/></svg> Vote on a time</button>
+                  <button class="outline-button" type="button" id="suggestTimeButton" aria-expanded="false" aria-controls="suggestTimeForm"><svg class="icon" aria-hidden="true"><use href="#i-plus"/></svg> Suggest a time</button>
+                </div>
+                <form class="suggest-time" id="suggestTimeForm" hidden>
+                  <div><label class="field-label" for="suggestDate">Day</label><input class="text-input" type="date" id="suggestDate" required /></div>
+                  <div><label class="field-label" for="suggestFrom">Starts at</label><input class="text-input" type="time" id="suggestFrom" step="900" required /></div>
+                  <button class="primary-button small" type="submit">Add this time</button>
+                </form>
                 <div class="suggestions" id="tentativeSuggestions"></div>
                 <div class="rsvp" id="rsvpRow" hidden>
                   <span>Are you in?</span>
@@ -354,8 +363,8 @@
     </dialog>
 
     <dialog id="tentativePlanDialog">
-      <div class="dialog-header"><div><p class="eyebrow">TENTATIVE PLAN</p><h2>What might be fun?</h2></div><button class="close-dialog" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
-      <p class="dialog-copy">Save an idea without locking anyone into a date. We’ll use the timing you choose to find overlaps.</p>
+      <div class="dialog-header"><div><p class="eyebrow" id="planDialogEyebrow">NEW PLAN</p><h2>What's the plan?</h2></div><button class="close-dialog" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <p class="dialog-copy">Set the date and time now, or make it tentative: the plan is on, and the group votes on when.</p>
       <form id="tentativePlanForm">
         <p class="plan-when" id="planWhen" hidden></p>
         <label class="field-label" for="planActivity">Plan idea</label>
@@ -364,6 +373,20 @@
         <input class="text-input" id="planLocation" name="location" placeholder="A restaurant, park, or neighborhood" maxlength="80" />
         <label class="field-label" for="planAudience">Plan with</label>
         <select class="text-input" id="planAudience" name="audience"></select>
+        <fieldset class="timing-options plan-mode">
+          <legend class="field-label">Is the time set?</legend>
+          <label><input type="radio" name="mode" value="set" checked /><span>Set the date and time</span></label>
+          <label><input type="radio" name="mode" value="tentative" /><span>Tentative: no date yet, vote on one</span></label>
+        </fieldset>
+        <div id="planSetFields">
+          <label class="field-label" for="planDate">Day</label>
+          <input class="text-input" type="date" id="planDate" name="date" />
+          <div class="date-range">
+            <div><label class="field-label" for="planFrom">From</label><input class="text-input" type="time" id="planFrom" name="from" step="900" /></div>
+            <div><label class="field-label" for="planTo">To</label><input class="text-input" type="time" id="planTo" name="to" step="900" /></div>
+          </div>
+        </div>
+        <div id="planTentativeFields" hidden>
         <fieldset class="timing-options">
           <legend class="field-label">When should we look?</legend>
           <label><input type="radio" name="timing" value="week" checked /><span>This week</span></label>
@@ -375,10 +398,11 @@
           <div><label class="field-label" for="planStart">From</label><input class="text-input" type="date" id="planStart" name="start" /></div>
           <div><label class="field-label" for="planEnd">To</label><input class="text-input" type="date" id="planEnd" name="end" /></div>
         </div>
+        </div>
         <label class="field-label" for="planRepeat">Repeat</label>
         <select class="text-input" id="planRepeat" name="repeat"></select>
         <p class="form-hint">Once a time is picked, a repeating plan rolls on to the next date by itself, and each date gets its own RSVPs.</p>
-        <button class="primary-button full" type="submit">Save tentative plan</button>
+        <button class="primary-button full" type="submit" id="planSubmit">Make plan</button>
       </form>
     </dialog>
 

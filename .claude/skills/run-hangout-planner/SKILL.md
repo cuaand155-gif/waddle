@@ -35,6 +35,7 @@ Without `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` the server runs in demo mod
 node .claude/skills/run-hangout-planner/driver.mjs [--signed-in] [--group-events] [--google-server] [--phone] [--theme dark] <<'EOF'
 nav /?nosw
 click [data-plan-idea]
+click #tentativePlanDialog input[name="mode"][value="tentative"]
 select #planRepeat weekly
 click #tentativePlanForm button[type=submit]
 wait-for .time-option
@@ -84,7 +85,7 @@ Useful selectors:
 | Friends | `#friendRequestEmail` (email or phone), `[data-one-on-one=<id>]`, `[data-view-calendar]`, then `#freeTogether [data-together]` |
 | Always busy | `[data-blocked-preset=work]`, `#blockedDays`, `#blockedStart`, `#blockedEnd`, `#blockedForm`, `[data-remove-blocked]` |
 | Account | `#phoneNumber`, `#phoneSendCode`, `#phoneCode`, `#phoneVerify` |
-| Plans | `#tentativePlanButton`, `[data-plan-idea]`, `.time-vote`, `.time-option [data-window]`, `[data-rsvp=yes]` |
+| Plans | `#tentativePlanButton` ("Make a plan"; the dialog starts on a set time: `input[name=mode][value=tentative]` for no date yet), `[data-plan-idea]`, `#voteOnTime` (shows the times on a plan with no date), `#suggestTimeButton`/`#suggestTimeForm`, `.time-vote`, `.time-option [data-window]`, `[data-rsvp=yes]` |
 | My calendar | `#sharingButton`, `[data-private-title="Therapy"]`, `#mycalPreview` |
 | Status | `#freeStart` |
 
