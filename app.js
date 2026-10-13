@@ -390,3 +390,83 @@ document.querySelectorAll(".slot").forEach((slot) => slot.addEventListener("clic
 }));
 
 loadWorkspace();
+// Phase 1 extensions — calendar connector label, profile username, notifications, stages
+const calendarStatusLabels = { google: 'Google Calendar · busy/free sync ready', apple: 'Apple Calendar · Prototype · secure CalDAV/feed backend required' };
+// Profile username / bio fields added in HTML
+const profileUsernameEl = document.getElementById('profileUsername');
+if (profileUsernameEl && savedProfile) profileUsernameEl.value = savedProfile.username || '';
+
+// Notification feed
+const addNotification = (title, body) => {
+  const feed = document.getElementById('notificationFeed');
+  if (!feed) return;
+  const div = document.createElement('div');
+  div.className = 'noti-item';
+  div.innerHTML = `<b>${title}</b><p>${body}</p><small>Just now</small>`;
+  feed.prepend(div);
+};
+
+// Settings toast with more context
+const settingsBtn = document.getElementById('settingsButton');
+if (settingsBtn) {
+  settingsBtn.addEventListener('click', () => {
+    showToast('Settings: profile (name/photo/username/bio/share_schedule/timezone/privacy/blocked), notifications, calendar connections (Google real / Apple prototype), default availability.');
+  });
+}
+
+// Plan stages visual (prototype)
+const renderPlanStages = () => {
+  document.querySelectorAll('.stage').forEach(s => {
+    const stage = s.dataset.stage;
+    s.classList.toggle('active', stage === 'voting' || stage === 'confirmed');
+  });
+};
+renderPlanStages();
+
+// New plan button opens tentative dialog with stage note
+const newPlanBtn = document.getElementById('newPlanButton');
+if (newPlanBtn) {
+  newPlanBtn.addEventListener('click', () => {
+    document.getElementById('tentativePlanDialog').showModal();
+    showToast('New plan: draft → collecting → voting → confirmed → completed (or cancelled, excluded from stats).');
+  });
+}
+// Phase 2 — stage interaction, enhanced voting/ideas, cohost/comment demo
+const stageFlow = document.getElementById('stageFlow');
+if (stageFlow) {
+  stageFlow.querySelectorAll('.stage[data-stage]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      stageFlow.querySelectorAll('.stage').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      showToast('Plan stage: ' + btn.dataset.stage + ' (prototype — connect backend for real state transitions).');
+    });
+  });
+}
+
+// Enhanced idea voting: toggle like with visual selected-idea state
+const ideaCards = document.querySelectorAll('.idea-card');
+ideaCards.forEach(card => {
+  const heart = card.querySelector('.heart');
+  if (!heart) return;
+  heart.addEventListener('click', () => {
+    const liked = heart.textContent === '♥';
+    heart.textContent = liked ? '♡' : '♥';
+    card.classList.toggle('selected-idea', !liked);
+    showToast(!liked ? 'Upvoted!' : 'Vote removed');
+  });
+});
+// Phase 4 — notifications persistence + server stub reference
+const notificationPrefs = JSON.parse(window.localStorage.getItem('gatherly-notifications') || '{"invitations":true,"requests":true,"votes":true,"reminders":true,"cancelled":false}');
+const savePrefs = () => {
+  window.localStorage.setItem('gatherly-notifications', JSON.stringify(notificationPrefs));
+};
+document.querySelectorAll('.notification-preferences input').forEach(inp => {
+  const key = inp.parentElement.textContent.trim().split(' ')[0].toLowerCase();
+  inp.checked = !!notificationPrefs[key] || !!notificationPrefs[key.replace('invitations to plans','invitations')];
+  inp.addEventListener('change', () => {
+    const k = key || 'default';
+    notificationPrefs[k] = inp.checked;
+    savePrefs();
+    showToast('Notification preference saved locally (server sync pending).');
+  });
+});

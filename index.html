@@ -17,6 +17,9 @@
         <a class="brand" href="#" aria-label="Gatherly home"><span class="brand-mark">✦</span><span>gatherly</span></a>
         <nav class="main-nav" aria-label="Main navigation">
           <a class="nav-item active" href="#overview"><span class="nav-icon">⌂</span>Overview</a>
+          <a class="nav-item" href="#plans"><span class="nav-icon">◈</span>Plans</a>
+          <a class="nav-item" href="#tracker"><span class="nav-icon">✦</span>Tracker</a>
+          <a class="nav-item" href="#notifications"><span class="nav-icon">♧</span>Notifications</a>
           <a class="nav-item" href="#availability"><span class="nav-icon">◷</span>Availability</a>
           <a class="nav-item" href="#ideas"><span class="nav-icon">✣</span>Activity ideas</a>
         </nav>
@@ -85,6 +88,45 @@
               <article class="person-card"><div class="person-top"><div class="avatar avatar-mint">TK</div><span class="presence"></span></div><strong>Taylor Kim</strong><small>Updated 1h ago</small><span class="person-status">✓ All set</span></article>
               <article class="person-card"><div class="person-top"><div class="avatar avatar-yellow">RL</div><span class="presence away"></span></div><strong>Riley Lee</strong><small>Updated yesterday</small><span class="person-status muted">Needs update</span></article>
               <article class="person-card add-person" id="addPerson"><div class="add-icon">＋</div><strong>Add someone</strong><small>Invite a friend to join</small></article>
+            </div>
+          </section>
+
+          <section class="plans-section" id="plans" aria-label="Plan stages">
+            <div class="section-heading compact"><div><p class="eyebrow">PLANS</p><h2>Plan stages</h2><p>From idea to hangout — with friends in the loop.</p></div><button class="outline-button" id="newPlanButton">＋ New plan</button></div>
+            <div class="stage-flow" aria-label="Plan stage progress" id="stageFlow">
+              <span class="stage active" data-stage="draft"><b>Draft</b><small>Idea saved</small></span>
+              <span class="stage" data-stage="collecting"><b>Collecting</b><small>Availability shared</small></span>
+              <span class="stage" data-stage="voting"><b>Voting</b><small>Ideas ranked</small></span>
+              <span class="stage" data-stage="confirmed"><b>Confirmed</b><small>Hangout set</small></span>
+              <span class="stage" data-stage="completed"><b>Completed</b><small>Memory saved</small></span>
+              <span class="stage cancelled" data-stage="cancelled"><b>Cancelled</b><small>Not counted</small></span>
+            </div>
+            <div class="plan-cards" id="planCards">
+              <article class="plan-card"><div class="plan-header"><h3>Weekend crew brunch</h3><span class="badge confirmed">Confirmed</span></div><p>Sat Sep 27 · 11:00 AM · Luma</p><div class="plan-meta"><span>5 people</span><span>✓ 4 votes</span></div></article>
+              <article class="plan-card cancelled-plan"><div class="plan-header"><h3>Picnic in the park</h3><span class="badge cancelled">Cancelled</span></div><p>Sun Sep 21 · 2:00 PM · Riverside Park</p><div class="plan-meta"><span>3 people · <b>Not counted</b></span></div></article>
+            </div>
+          </section>
+
+          <section class="tracker-section" id="tracker" aria-label="Tracker">
+            <div class="section-heading compact"><div><p class="eyebrow">TRACKER</p><h2>Completed hangouts</h2><p>Only finished plans count — cancelled ones stay visible but never added.</p></div></div>
+            <div class="tracker-stats"><div class="stat"><b>14</b><small>Completed</small></div><div class="stat"><b>3</b><small>Streak (weeks)</small></div><div class="stat"><b>2</b><small>Favorited activities</small></div></div>
+            <div class="tracker-list" id="trackerList">
+              <article class="tracker-item"><strong>Brunch at Luma</strong><small>Sat, Sep 27 · with Jamie, Taylor</small><span class="tag">Favorite</span><span class="memory-dots">📷 Memory</span></article>
+              <article class="tracker-item"><strong>Games night</strong><small>Fri, Sep 26 · with Riley</small></article>
+            </div>
+          </section>
+
+          <section class="notifications-section" id="notifications" aria-label="Notifications">
+            <div class="section-heading compact"><div><p class="eyebrow">NOTIFICATIONS</p><h2>In-app + email</h2><p>Control what you hear — invitations, votes, reminders, changes, confirmations.</p></div></div>
+            <div class="notification-preferences">
+              <label><input type="checkbox" checked /> Invitations to plans</label>
+              <label><input type="checkbox" checked /> Friend requests</label>
+              <label><input type="checkbox" checked /> Votes & changes</label>
+              <label><input type="checkbox" checked /> Reminders & confirmations</label>
+              <label><input type="checkbox" /> Cancelled / rescheduled only</label>
+            </div>
+            <div class="notification-feed" id="notificationFeed">
+              <div class="noti-item"><b>New invitation</b><p>Jamie invited you to "Weekend crew brunch".</p><small>12m ago</small></div>
             </div>
           </section>
 
