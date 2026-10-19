@@ -121,7 +121,7 @@ export function mayOpenLocked(state, account) {
 }
 
 async function lockedOut(url, key, request, stored, userId) {
-  if (!stored.settings.locked || stored.ownerId === userId || stored.members.some((member) => member.userId === userId)) return false;
+  if (stored.ownerId === userId || stored.members.some((member) => member.userId === userId)) return false;
   return !mayOpenLocked(stored, await accountFromToken(url, key, bearer(request)));
 }
 
@@ -287,7 +287,13 @@ async function handle(request, response) {
     if (error) return send(response, 502, { error: "Unable to load workspace", detail: error });
     if (row) {
       const stored = normalizeWorkspaceState(row.state);
-      if (slug !== DEMO_SLUG && (await lockedOut(url, key, request, stored, authenticatedUser))) return send(response, 403, LOCKED_ANSWER);
+      if (slug !== DEMO_SLUG && (await lockedOut(url, key, request, stored, authenticatedUser))) {
+        const invite = header(request, "x-waddle-invite");
+        if (!stored.settings.locked && inviteIsLive(stored, invite)) {
+          return guestRead(response, { url, key, slug, invite, token: header(request, "x-waddle-guest") });
+        }
+        return send(response, 403, LOCKED_ANSWER);
+      }
       // Groups made before invite links get one the first time a member opens them.
       if (!stored.invite && slug !== DEMO_SLUG) {
         const saved = await saveIfUnchanged(url, key, slug, row.updated_at, normalizeWorkspaceState({ ...stored, invite: freshInvite() }));
@@ -296,7 +302,7 @@ async function handle(request, response) {
       return send(response, 200, { slug, state: memberView(stored), rev: row.updated_at, persisted: true });
     }
     // First visit to a slug creates it, so an invite link works immediately.
-    const seeded = seedFor(slug);
+    const seeded = normalizeWorkspaceState({ ...seedFor(slug), ...(authenticatedUser ? { ownerId: authenticatedUser } : {}) });
     const created = await insertRow(url, key, slug, seeded);
     if (created.error) return send(response, 502, { error: "Unable to create workspace", detail: created.error });
     return send(response, 201, {
@@ -322,7 +328,7 @@ async function handle(request, response) {
 
   if (!current.row) {
     // The invite link is the server's to make, never the browser's.
-    const fresh = normalizeWorkspaceState({ ...incoming, hangouts: [], invite: slug === DEMO_SLUG ? null : freshInvite(), guests: null });
+    const fresh = normalizeWorkspaceState({ ...incoming, ...(authenticatedUser ? { ownerId: authenticatedUser } : {}), hangouts: [], invite: slug === DEMO_SLUG ? null : freshInvite(), guests: null });
     const created = await insertRow(url, key, slug, fresh);
     if (created.error) return send(response, 502, { error: "Unable to create workspace", detail: created.error });
     return send(response, 201, { slug, state: memberView(normalizeWorkspaceState(created.row?.state || fresh)), rev: created.row?.updated_at || null, persisted: true });
@@ -330,12 +336,12 @@ async function handle(request, response) {
 
   const stored = normalizeWorkspaceState(current.row.state);
 
-  // A locked workspace only accepts writes from a signed-in member.
-  if (stored.settings.locked) {
+  // Every persisted group accepts full-document writes only from a member.
+  // An invite link gives a guest the limited action endpoint, never PUT.
+  if (slug !== DEMO_SLUG) {
     if (authenticatedUser === undefined) authenticatedUser = await userFromToken(url, key, bearer(request));
     const userId = authenticatedUser;
-    const allowed = userId && (stored.ownerId === userId || stored.members.some((member) => member.userId === userId));
-    // Nothing about the group goes back to someone it is locked against.
+    const allowed = userId && (await mayOpenLocked(stored, await accountFromToken(url, key, bearer(request))));
     if (!allowed) return send(response, 403, { ...LOCKED_ANSWER, error: "This workspace is locked to its signed-in members." });
   }
 
@@ -350,12 +356,26 @@ async function handle(request, response) {
     });
   }
 
-  // Ownership is not reassignable by whoever writes last: once a workspace has
-  // an owner, only that signed-in owner can change the field.
-  if (stored.ownerId && incoming.ownerId !== stored.ownerId) {
-    if (authenticatedUser === undefined) authenticatedUser = await userFromToken(url, key, bearer(request));
-    if (authenticatedUser !== stored.ownerId) incoming.ownerId = stored.ownerId;
+  // A member may leave on their own; removing anyone else needs the group's
+  // manager. If that manager leaves, hand controls to an existing signed-in
+  // member before saving. A group cannot be left with a stale manager id.
+  let successorId = null;
+  if (slug !== DEMO_SLUG) {
+    const remaining = new Set(incoming.members.map((member) => member.id));
+    const removed = stored.members.filter((member) => !remaining.has(member.id));
+    if (removed.some((member) => member.userId !== authenticatedUser && !canManage(stored, authenticatedUser))) {
+      return send(response, 403, { error: "Only a group manager can remove another member." });
+    }
+    if (removed.some((member) => member.userId === stored.ownerId)) {
+      const successor = stored.members.find((member) => member.userId && member.userId !== stored.ownerId && remaining.has(member.id));
+      if (!successor) return send(response, 409, { error: "Add another signed-in member before the last manager leaves." });
+      successorId = successor.userId;
+    }
   }
+
+  // A full workspace save cannot appoint a manager. Only succession on a
+  // verified departure changes this technical field.
+  if (stored.ownerId) incoming.ownerId = successorId || stored.ownerId;
 
   // An organization stays busy/free only unless its owner changes the type.
   if (stored.kind === "organization" && incoming.kind !== "organization") {

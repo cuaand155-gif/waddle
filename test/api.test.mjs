@@ -125,7 +125,7 @@ test("the workspace endpoint refuses unsupported methods", async () => {
 });
 
 test("a workspace PUT normalizes whatever the client sends", async (t) => {
-  const rows = [{ slug: "team", state: { name: "Team", members: [] }, updated_at: "2026-09-21T10:00:00.000Z" }];
+  const rows = [{ slug: "team", state: { name: "Team", ownerId: "user-1", members: [] }, updated_at: "2026-09-21T10:00:00.000Z" }];
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
   t.after(() => {
@@ -173,7 +173,7 @@ test("a stale revision is reported as a conflict with the current state", async 
       patchCalls += 1;
       return new Response("[]", { status: 200 });
     }
-    return new Response(JSON.stringify([{ slug: "team", state: { name: "Team" }, updated_at: "2026-09-21T12:00:00.000Z" }]), { status: 200 });
+    return new Response(JSON.stringify([{ slug: "team", state: { name: "Team", ownerId: "user-1" }, updated_at: "2026-09-21T12:00:00.000Z" }]), { status: 200 });
   }));
 
   const result = await call(workspaceHandler, {
@@ -199,7 +199,7 @@ test("with a database, a group answers only a signed-in caller and leaks nothing
 
   const stored = {
     slug: "team",
-    state: { name: "Team", members: [{ id: "a", name: "Ada", busy: [{ start: "2026-09-21T09:00:00.000Z", end: "2026-09-21T10:00:00.000Z" }] }] },
+    state: { name: "Team", ownerId: "user-1", members: [{ id: "a", name: "Ada", busy: [{ start: "2026-09-21T09:00:00.000Z", end: "2026-09-21T10:00:00.000Z" }] }] },
     updated_at: "2026-09-21T10:00:00.000Z",
   };
   const asked = [];
@@ -243,6 +243,7 @@ test("the first signed-in visit to a new group still creates it", async (t) => {
   const result = await call(workspaceHandler, { method: "GET", query: { slug: "book-club-7fq2x" }, headers: SIGNED_IN });
   assert.equal(result.status, 201);
   assert.equal(inserted.slug, "book-club-7fq2x");
+  assert.equal(inserted.state.ownerId, "user-1");
   assert.equal(result.body.state.name, "Book club 7fq2x");
 });
 
@@ -311,7 +312,7 @@ test("a locked workspace rejects writes from anyone but a signed-in member", asy
   assert.equal(member.body.state.name, "Renamed");
 });
 
-test("ownership cannot be taken over by another signed-in writer", async (t) => {
+test("a signed-in outsider cannot take over a group", async (t) => {
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
   t.after(() => {
@@ -333,8 +334,8 @@ test("ownership cannot be taken over by another signed-in writer", async (t) => 
     headers: { authorization: "Bearer other-token" },
     body: { rev: stored.updated_at, state: { name: "Team", ownerId: "user-2", members: [] } },
   });
-  assert.equal(result.status, 200);
-  assert.equal(result.body.state.ownerId, "user-1", "the stored owner is kept");
+  assert.equal(result.status, 403);
+  assert.equal(result.body.state, undefined);
 });
 
 test("either the integration's variable names or the hand-made ones work", async (t) => {
@@ -354,7 +355,7 @@ test("either the integration's variable names or the hand-made ones work", async
   let asked = null;
   t.mock.method(globalThis, "fetch", withAuth(async (url) => {
     asked = String(url);
-    return new Response(JSON.stringify([{ slug: "team", state: { name: "Team" }, updated_at: "2026-09-21T10:00:00.000Z" }]), { status: 200 });
+    return new Response(JSON.stringify([{ slug: "team", state: { name: "Team", ownerId: "user-1" }, updated_at: "2026-09-21T10:00:00.000Z" }]), { status: 200 });
   }));
 
   const result = await call(workspaceHandler, { method: "GET", query: { slug: "team" }, headers: SIGNED_IN });
@@ -408,7 +409,7 @@ test("a malformed SUPABASE_URL is skipped in favour of the integration's URL", a
   let asked = null;
   t.mock.method(globalThis, "fetch", withAuth(async (url) => {
     asked = String(url);
-    return new Response(JSON.stringify([{ slug: "team", state: { name: "Team" }, updated_at: "2026-09-21T10:00:00.000Z" }]), { status: 200 });
+    return new Response(JSON.stringify([{ slug: "team", state: { name: "Team", ownerId: "user-1" }, updated_at: "2026-09-21T10:00:00.000Z" }]), { status: 200 });
   }));
   const result = await call(workspaceHandler, { method: "GET", query: { slug: "team" }, headers: SIGNED_IN });
   assert.equal(result.status, 200);
@@ -469,6 +470,62 @@ function oneGroup(t, state) {
   }));
   return row;
 }
+
+test("an unlocked group hides its full state from a signed-in outsider", async (t) => {
+  const row = oneGroup(t, {
+    name: "Friends",
+    ownerId: "user-1",
+    members: [{ id: "a", name: "Ada", userId: "user-1", email: "ada@example.com" }],
+    invite: { code: "abcdefghijklmnopqrstuvwx", createdAt: "2026-09-21T10:00:00.000Z" },
+    plan: { id: "p1", activity: "Secret dinner" },
+  });
+  const headers = { authorization: "Bearer other-token" };
+  const blocked = await call(workspaceHandler, { method: "GET", query: { slug: "team" }, headers });
+  assert.equal(blocked.status, 403);
+  assert.equal(blocked.body.state, undefined);
+  const write = await call(workspaceHandler, { method: "PUT", query: { slug: "team" }, headers, body: { rev: row.updated_at, state: row.state } });
+  assert.equal(write.status, 403);
+  const invited = await call(workspaceHandler, {
+    method: "GET", query: { slug: "team" },
+    headers: { ...headers, "x-waddle-invite": row.state.invite.code },
+  });
+  assert.equal(invited.status, 200);
+  assert.equal(invited.body.join.name, "Friends");
+  assert.equal(invited.body.state, undefined);
+});
+
+test("a departing manager passes group controls to an existing member", async (t) => {
+  const row = oneGroup(t, {
+    name: "Friends", ownerId: "user-1",
+    members: [{ id: "a", name: "Ada", userId: "user-1" }, { id: "b", name: "Bo", userId: "user-2" }],
+  });
+  const withoutAda = { ...row.state, ownerId: "fake", members: row.state.members.slice(1) };
+  const outsiderRemoval = await call(workspaceHandler, {
+    method: "PUT", query: { slug: "team" }, headers: { authorization: "Bearer other-token" },
+    body: { rev: row.updated_at, state: withoutAda },
+  });
+  assert.equal(outsiderRemoval.status, 403);
+  const departure = await call(workspaceHandler, {
+    method: "PUT", query: { slug: "team" }, headers: SIGNED_IN,
+    body: { rev: row.updated_at, state: withoutAda },
+  });
+  assert.equal(departure.status, 200);
+  assert.equal(row.state.ownerId, "user-2");
+  assert.deepEqual(row.state.members.map((member) => member.userId), ["user-2"]);
+});
+
+test("the last signed-in manager cannot leave a stranded group", async (t) => {
+  const row = oneGroup(t, {
+    name: "Friends", ownerId: "user-1",
+    members: [{ id: "a", name: "Ada", userId: "user-1" }, { id: "g", name: "Guest", guest: true }],
+  });
+  const departure = await call(workspaceHandler, {
+    method: "PUT", query: { slug: "team" }, headers: SIGNED_IN,
+    body: { rev: row.updated_at, state: { ...row.state, members: row.state.members.slice(1) } },
+  });
+  assert.equal(departure.status, 409);
+  assert.equal(row.state.ownerId, "user-1");
+});
 
 test("a locked group (a 1-on-1 too) tells an outsider nothing, but opens for its members and its invitees", async (t) => {
   oneGroup(t, {

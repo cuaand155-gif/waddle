@@ -360,10 +360,11 @@ function renderSignInGate() {
 
 /** Headers that prove who is asking: an account, or a guest pass from an invite link. */
 async function workspaceHeaders(token) {
-  if (token) return { Authorization: `Bearer ${token}` };
   const pass = guestPass();
-  if (!pass) return {};
-  return { "X-Waddle-Invite": pass.invite, ...(pass.token ? { "X-Waddle-Guest": pass.token } : {}) };
+  return {
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...(pass ? { "X-Waddle-Invite": pass.invite, ...(pass.token ? { "X-Waddle-Guest": pass.token } : {}) } : {}),
+  };
 }
 
 /** Puts a closed gate up: nothing about the group is shown or saved. */
@@ -380,7 +381,7 @@ async function loadWorkspace() {
   const cached = readJson(STORAGE.cache(session.slug), null);
   try {
     const token = await accessToken();
-    const pass = token ? null : guestPass();
+    const pass = guestPass();
     const response = await fetch(`/api/workspace?slug=${encodeURIComponent(session.slug)}`, {
       headers: { Accept: "application/json", ...(await workspaceHeaders(token)) },
     });
@@ -3661,6 +3662,10 @@ $("groupForm").addEventListener("submit", async (event) => {
 async function removeMember(id) {
   const member = session.state.members.find((entry) => entry.id === id);
   if (!member || id === memberId) return;
+  if (session.slug !== DEMO_SLUG && session.state.ownerId && session.state.ownerId !== ui.user?.id) {
+    showToast("Only a group manager can remove another member.");
+    return;
+  }
   if (!window.confirm(`Remove ${member.name} from this group?`)) return;
   if (member.guest) {
     // The server removes a guest, their pass and their votes together.
@@ -3669,7 +3674,7 @@ async function removeMember(id) {
     showToast(ok ? `${member.name} removed, with their votes.` : payload.error || "Couldn't remove them.");
     return;
   }
-  await mutate(
+  const saved = await mutate(
     (draft) => {
       draft.members = draft.members.filter((entry) => entry.id !== id);
       for (const idea of draft.ideas) idea.votes = idea.votes.filter((vote) => vote !== id);
@@ -3677,7 +3682,7 @@ async function removeMember(id) {
     { note: `${member.name} was removed` }
   );
   renderSavedPeople();
-  showToast(`${member.name} removed from this group.`);
+  if (saved) showToast(`${member.name} removed from this group.`);
 }
 
 $("savedPeople").addEventListener("click", (event) => {
