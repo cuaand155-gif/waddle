@@ -8,7 +8,7 @@ Last checked: 2026-10-19, after the "Make a plan" release: 289 unit/API tests an
 
 A hangout planner for friend groups. Everyone's calendars feed one shared week so the group can see when people are free, pencil in a plan, vote on a time and RSVP. Friends can see each other's schedules at the level each person chooses. A public booking link lets anyone else book open time.
 
-Live: https://hangout-planner-omega.vercel.app (also hangout-planner-cuacua.vercel.app).
+Live: https://hangout-planner-omega.vercel.app. The secondary URL, https://hangout-planner-cuacua.vercel.app, still served an older build on 2026-10-19; update or retire it in Vercel's `cuacua` scope.
 
 ## 2. How it's built
 
