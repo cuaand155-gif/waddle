@@ -91,8 +91,8 @@ function renderPage() {
   $("bookingMeta").textContent = `${page.duration} min · times shown in your time zone (${visitorZone.replace(/_/g, " ")})`;
   // Only promise an email when this server actually sends them.
   $("guestEmailHint").textContent = page.emails
-    ? "Only they see it. We'll email you a confirmation with a cancel link."
-    : "Only they see it. This host hasn't set up email, so nothing is emailed — you'll get your cancel link on the next screen.";
+    ? "Required so the host can identify or contact you about the booking. Only they see it. We'll email you a confirmation with a cancel link."
+    : "Required so the host can identify or contact you about the booking. Only they see it. This host hasn't set up email, so nothing is emailed — you'll get your cancel link on the next screen.";
   renderDays();
   show("bookingPicker");
 }

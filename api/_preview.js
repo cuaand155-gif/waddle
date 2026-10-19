@@ -14,7 +14,7 @@ import { config, restHeaders } from "./_supabase.js";
 
 export const GENERIC_PREVIEW = Object.freeze({
   title: "Waddle · find a time that works for everyone",
-  description: "Plan hangouts without sharing your whole calendar. Waddle shows when people are busy or free, never what they're doing.",
+  description: "Plan hangouts without sharing your whole calendar. Waddle shows busy or free by default; you choose whether to share event details.",
   headline: "Plan hangouts without sharing your whole calendar",
   action: "Find a time",
 });
@@ -33,7 +33,7 @@ export function previewFor(state, { kind = "g" } = {}) {
   const plan = state?.plan;
   const activity = cleanText(plan?.activity);
   const name = cleanText(state?.name, 60) || "Your group";
-  const privacy = "No account needed. Waddle shares busy or free, never what anyone's doing.";
+  const privacy = "No account needed. Guests see busy or free, not calendar event details.";
   if (kind === "p" && activity && plan?.chosen) {
     return {
       title: `${activity} · RSVP`,

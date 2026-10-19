@@ -86,7 +86,7 @@ test("the /p/ page carries Open Graph and Twitter tags for the plan, with no nam
   assert.equal(meta(body, "twitter:card"), "summary_large_image");
   assert.equal(meta(body, "og:url"), `https://waddle.test/p/book-club-ab2cd?i=${CODE}`);
   assert.equal(meta(body, "og:image"), `https://waddle.test/api/og?kind=p&amp;slug=book-club-ab2cd&amp;i=${CODE}`);
-  assert.match(meta(body, "og:description"), /never what anyone's doing|never what anyone&#39;s doing/);
+  assert.match(meta(body, "og:description"), /Guests see busy or free/);
   assert.match(body, /<title>Board games · vote on a time<\/title>/);
   assert.equal((body.match(/property="og:title"/g) || []).length, 1, "the default preview block is replaced, not repeated");
   const head = body.slice(0, body.indexOf("</head>"));

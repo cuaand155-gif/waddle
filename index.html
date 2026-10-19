@@ -4,12 +4,12 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f4eee6" />
-    <meta name="description" content="Plan hangouts without sharing your whole calendar. Waddle shows when people are busy or free, never what they're doing." />
+    <meta name="description" content="Plan hangouts without sharing your whole calendar. Waddle shows busy or free by default; you choose whether to share event details." />
     <!-- preview: /g/ and /p/ links replace this block with their own (api/page.js) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Waddle" />
     <meta property="og:title" content="Waddle · find a time that works for everyone" />
-    <meta property="og:description" content="Plan hangouts without sharing your whole calendar. Waddle shows when people are busy or free, never what they're doing." />
+    <meta property="og:description" content="Plan hangouts without sharing your whole calendar. Waddle shows busy or free by default; you choose whether to share event details." />
     <meta property="og:image" content="https://hangout-planner-omega.vercel.app/icons/og-card.png" />
     <meta name="twitter:card" content="summary_large_image" />
     <!-- /preview -->
@@ -297,7 +297,7 @@
             <div class="idea-grid" id="ideaGrid"></div>
           </section>
 
-          <footer><span>Made for the moments between plans.</span><span>Privacy-first by design</span></footer>
+          <footer><span>Made for the moments between plans.</span><span>Busy/free by default</span></footer>
         </div>
       </main>
     </div>
@@ -571,7 +571,7 @@
 
     <dialog id="sharingDialog">
       <div class="dialog-header"><div><p class="eyebrow">WHO SEES WHAT</p><h2>Your calendar, your call.</h2></div><button class="close-dialog" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
-      <p class="dialog-copy">Your full calendar stays on this device. Friends and groups only ever get what you choose here.</p>
+      <p class="dialog-copy">Choose what friends and groups can see. Waddle also uses server services to check calendar availability for sync and booking links.</p>
       <label class="field-label" for="shareFriendsDefault">Friends see</label>
       <select class="text-input" id="shareFriendsDefault"></select>
       <p class="form-hint"><strong>Only events I pick</strong> shows the names of events you tap in Your calendar; everything else reads “Busy”.</p>

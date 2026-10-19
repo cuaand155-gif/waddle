@@ -51,7 +51,7 @@ export function cardFor(preview) {
       h("div", { display: "flex", fontFamily: "Fraunces", fontSize: headlineSize(headline), lineHeight: 1.08, color: COLORS.ink, letterSpacing: -1.5 }, headline),
       h("div", { display: "flex", alignItems: "center", justifyContent: "space-between" }, [
         h("div", { display: "flex", padding: "18px 34px", borderRadius: 999, background: COLORS.accent, color: "#fff", fontSize: 34 }, `${preview.action} →`),
-        h("div", { display: "flex", fontSize: 24, color: COLORS.muted }, "Busy or free, never what you're doing"),
+        h("div", { display: "flex", fontSize: 24, color: COLORS.muted }, "Busy or free by default"),
       ]),
     ]),
   ]);

@@ -1,6 +1,6 @@
 # Waddle project hub
 
-Last reviewed: 2026-10-19. Keep this page as the running to-do list: check off finished work, add new tasks where they belong, and update the date when reviewing it.
+Last reviewed: 2026-10-19, including legal and privacy issue spotting. Keep this page as the running to-do list: check off finished work, add new tasks where they belong, and update the date when reviewing it.
 
 ## What Waddle is
 
@@ -13,13 +13,16 @@ Waddle helps friends find time to meet. People can belong to multiple groups, sh
 
 These are ordered by dependency. The operator decisions belong to Alexi; app changes can follow them.
 
-- [ ] **Choose Waddle's operator name and create a dedicated email.** Make an address for support and privacy requests, secure it with two-factor authentication, and decide who monitors it. A dedicated Gmail address works initially; move to `support@your-domain` after choosing a domain. Record the final operator name and address in the public policy, terms, Google consent screen, and app contact links. **Owner: Alexi.**
+- [ ] **Choose Waddle's operator name and create a dedicated email.** Make an address for support and privacy requests, secure it with two-factor authentication, and decide who monitors it. A dedicated Gmail address works initially; move to `support@your-domain` after choosing a domain. Decide intended regions, minimum age/children approach, service jurisdiction, and who will answer data requests. Record the final operator name and address in the public policy, terms, Google consent screen, and app contact links. **Owner: Alexi.**
 - [ ] **Choose and connect an owned domain.** Use it for Waddle's public site and, if desired, branded email. Verify ownership in Google Search Console. **Owner: Alexi for domain purchase and DNS access; implementation after that.**
-- [ ] **Define and implement account deletion.** Decide what happens to owned groups, friend links, bookings, tokens, push subscriptions, retained backups, and data held by other group members. Add a discoverable deletion flow and verify it with two accounts. The current “Reset this device” only clears local data.
-- [ ] **Publish accurate privacy and storage information.** Cover account, friend, group, calendar, booking, push, and local device data; processors; retention; deletion; and contact details. Put a public HTML policy on the owned domain and link it from the homepage and sign-in screen. Assess consent requirements for the actual audience and storage used. Do not add a generic cookie banner without a corresponding nonessential tracking choice.
+- [ ] **Inventory data and set retention periods.** Include account profiles; pending friend requests with email/phone; workspace JSON with guests, availability, comments, photos and hangout history; booking visitor names/emails/notes, including cancellations; Google refresh/access tokens; ICS URLs; push endpoints; notification logs; device storage; processors; and backups. Decide what survives when a group member leaves or an account closes.
+- [ ] **Implement deletion and data requests.** Add an account deletion path and a way for guests and booking visitors to ask about or delete their data. Test with two accounts and a guest. “Reset this device” only clears local data. Verify Google disconnect removes the server refresh token before showing success; the current client ignores a failed delete request.
+- [ ] **Publish accurate privacy and storage information for the already-live site.** Explain each data flow, retention, processor, cross-border handling, contact and request path. Put a public HTML policy on the owned domain and link it from the homepage, sign-in, guest join, booking page and footer. Explain why a booking visitor's email is required even while confirmation email is off. Assess consent requirements for the actual audience and storage used. Do not add a generic cookie banner without a corresponding nonessential tracking choice.
 - [ ] **Publish Waddle's terms.** Confirm jurisdiction, age rule, operator identity, and how invitations, shared plans, service availability, and account closure work. Link the final terms publicly and in sign-in.
 - [ ] **Complete Google OAuth verification.** Set the verified domain, support email, homepage, policy and terms in Google Auth Platform; check the requested Calendar scope; then submit the brand and sensitive-scope review with a recording of the real consent and calendar flow. This is the path to removing the public “unverified app” warning. Temporary test-user access does not complete verification.
 - [ ] **Run a real two-account production check.** Check sign-in, friend requests, calendar visibility and private events, a shared plan, its finished hangout count, and a booking link. Use authorized test accounts and avoid sending real booking emails or changing real calendars during development tests.
+- [ ] **Audit privacy-facing behavior and copy.** Review whether profiles should be readable by every signed-in user; make clear that a past plan with two Yes RSVPs is an inferred hangout, not confirmed attendance; and disclose that chat preview services can see a group name or plan title from a live invite link. Decide whether sensitive plans need a generic preview.
+- [ ] **Run an accessibility acceptance check.** Check keyboard use, focus, screen-reader labels and contrast in sign-in, dialogs, guest join and booking, then fix failures before wider promotion.
 
 ## Decisions and provider setup
 
