@@ -3682,7 +3682,7 @@ async function removeMember(id) {
     { note: `${member.name} was removed` }
   );
   renderSavedPeople();
-  if (saved) showToast(`${member.name} removed from this group.`);
+  if (saved || session.slug === DEMO_SLUG) showToast(`${member.name} removed from this group.`);
 }
 
 $("savedPeople").addEventListener("click", (event) => {
