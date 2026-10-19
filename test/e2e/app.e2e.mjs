@@ -201,6 +201,7 @@ async function planAndPick(page, { activity = "Board games", location = "Snakes 
   await page.locator("#tentativePlanButton").click();
   await page.fill("#planActivity", activity);
   await page.fill("#planLocation", location);
+  await page.locator('#tentativePlanDialog input[name="mode"][value="tentative"]').check();
   await page.locator('#tentativePlanDialog input[name="timing"][value="month"]').check();
   await page.selectOption("#planRepeat", repeat);
   await page.locator("#tentativePlanForm button[type=submit]").click();
@@ -305,6 +306,7 @@ describe("group view", () => {
   browserTest("propose a plan, vote on a time, pick it, RSVP", {}, async ({ page, go }) => {
     await go("/");
     await page.locator("[data-plan-idea]").first().click();
+    await page.locator('#tentativePlanDialog input[name="mode"][value="tentative"]').check();
     await page.selectOption("#planRepeat", "weekly");
     await page.locator("#tentativePlanForm button[type=submit]").click();
     await page.locator(".time-option").first().waitFor();
@@ -1223,6 +1225,47 @@ describe("people", () => {
 });
 
 describe("plans", () => {
+  browserTest("Make a plan: set the date and time, or make it tentative and vote on a time or suggest one", {}, async ({ page, go }) => {
+    await go("/?nosw");
+    // A set date and time: the plan is on the calendar straight away.
+    await page.locator("#tentativePlanButton").click();
+    assert.ok(await page.locator('input[name="mode"][value="set"]').isChecked(), "Make a plan starts with a set time");
+    await page.fill("#planActivity", "Dinner");
+    const day = await page.evaluate(() => { const d = new Date(); d.setDate(d.getDate() + 3); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; });
+    await page.fill("#planDate", day);
+    await page.fill("#planFrom", "19:00");
+    await page.fill("#planTo", "21:00");
+    await page.locator("#tentativePlanForm button[type=submit]").click();
+    await toastSays(page, /Plan made: .* at 7:00 PM/);
+    assert.equal(await page.locator("#tentativeBadge").innerText(), "Pencilled in");
+    assert.equal(await page.locator("#voteActions").isHidden(), true, "no voting once the date is set");
+
+    // Tentative: the plan is on, the date isn't. Vote on a time, or suggest one.
+    await page.locator("#editTentativePlan").click();
+    await page.locator('#tentativePlanDialog input[name="mode"][value="tentative"]').check();
+    assert.equal(await page.locator("#planSetFields").isHidden(), true);
+    await page.locator("#tentativePlanForm button[type=submit]").click();
+    await page.waitForFunction(() => document.querySelector("#tentativeBadge").textContent === "No date yet");
+    assert.equal(await page.locator("#voteActions").isVisible(), true);
+    const options = await page.locator(".time-option").count();
+    assert.ok(options >= 2, "several times to vote on");
+
+    await page.locator("#suggestTimeButton").click();
+    await page.fill("#suggestDate", day);
+    await page.fill("#suggestFrom", "11:30");
+    await page.locator("#suggestTimeForm button[type=submit]").click();
+    await toastSays(page, /Suggested .* at 11:30 AM, with your vote/);
+    const suggested = page.locator(".time-option.voted", { hasText: "11:30 AM" });
+    await suggested.waitFor();
+    assert.match(await suggested.locator(".time-vote").innerText(), /1/);
+
+    // Hiding and showing the times.
+    await page.locator("#voteOnTime").click();
+    assert.equal(await page.locator("#tentativeSuggestions").isHidden(), true);
+    await page.locator("#voteOnTime").click();
+    assert.equal(await page.locator("#tentativeSuggestions").isVisible(), true);
+  });
+
   browserTest("repeating plans roll on to the next date by themselves, with fresh RSVPs, and export as repeating", {}, async ({ page, go }) => {
     await go("/");
     const chosen = localAt(-6, 18);
@@ -1309,7 +1352,7 @@ describe("plans", () => {
     assert.ok((await page.locator("#calendarGrid .slot.in-window").count()) >= 2, "at least the shortest window");
 
     await page.locator("#planButton").click();
-    assert.ok((await page.locator("#planWhen").innerText()).startsWith(`${day}, ${time.split(" – ")[0]}`));
+    assert.ok(await page.locator('input[name="mode"][value="set"]').isChecked(), "a picked window opens as a set time");
     await page.fill("#planActivity", "Picnic");
     await page.locator("#tentativePlanForm button[type=submit]").click();
     await page.waitForFunction(() => document.querySelector("#tentativeBadge").textContent === "Pencilled in");
@@ -1704,10 +1747,10 @@ describe("friends without a group", () => {
     await Promise.all([page.waitForURL(/\?w=1on1-[a-f0-9]{16}$/), page.locator("#freeTogether [data-together]").first().click()]);
     const slug = new URL(page.url()).searchParams.get("w");
     await page.waitForFunction(() => document.querySelector("#tentativePlanDialog")?.open);
-    assert.equal(await page.locator("#planWhen").isHidden(), false, "the plan opens at the time you picked");
+    assert.ok(await page.locator('input[name="mode"][value="set"]').isChecked(), "the plan opens at the time you picked");
     await page.fill("#planActivity", "Coffee");
     await page.locator("#tentativePlanForm button[type=submit]").click();
-    await toastSays(page, /Tentative plan saved/);
+    await toastSays(page, /Plan made/);
     assert.equal(await page.locator("#groupKindLabel").innerText(), "1-on-1");
     assert.equal(await page.locator("#workspaceName").innerText(), "Alexi & Sam");
     const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(`gatherly-workspace:${key}`)), slug);
@@ -2199,7 +2242,8 @@ describe("notifications", () => {
     await page.locator("#activityDialog .close-dialog").click();
     assert.equal(await page.locator("#activityDot").isVisible(), false, "seen");
 
-    // Voting clears "you haven't voted".
+    // Voting clears "you haven't voted": "Vote on a time" opens the times.
+    await page.locator("#voteOnTime").click();
     await page.locator(".time-vote").first().click();
     await toastSays(page, /Vote added/);
     await page.locator("#activityButton").click();
@@ -2284,6 +2328,7 @@ describe("plans: the best time, and talking it over", () => {
   async function proposePlan(page, activity = "Picnic") {
     await page.locator("#tentativePlanButton").click();
     await page.fill("#planActivity", activity);
+    await page.locator('#tentativePlanDialog input[name="mode"][value="tentative"]').check();
     await page.locator('#tentativePlanDialog input[name="timing"][value="month"]').check();
     await page.locator("#tentativePlanForm button[type=submit]").click();
     await page.locator(".time-option [data-window]").first().waitFor();

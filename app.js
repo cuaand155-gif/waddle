@@ -1246,16 +1246,23 @@ function renderPlan() {
   $("tentativeTiming").textContent = occurrence
     ? `${repeats ? "Next up" : "Pencilled in for"} ${formatDayStamp(occurrence.start)} at ${formatClock(occurrence.start)} with ${plan.audience}${repeats}`
     : `${scope} with ${plan.audience}${repeats}`;
-  $("tentativeBadge").textContent = plan.chosen ? (repeats ? "Repeating" : "Pencilled in") : "Not confirmed";
-  $("tentativeEyebrow").textContent = plan.chosen ? "IT'S A PLAN" : "JUST A THOUGHT";
-  $("tentativeHeading").textContent = plan.chosen ? "See you there" : "Keep a maybe on the calendar";
-  $("tentativeLead").textContent = plan.chosen ? "The time is picked. Let everyone know if you're in." : "Save the idea now and find the best time with your group later.";
+  $("tentativeBadge").textContent = plan.chosen ? (repeats ? "Repeating" : "Pencilled in") : "No date yet";
+  $("tentativeLabel").textContent = plan.chosen ? "PLAN" : "TENTATIVE PLAN";
+  $("tentativeEyebrow").textContent = plan.chosen ? "IT'S A PLAN" : "TENTATIVE: NO DATE YET";
+  $("tentativeHeading").textContent = plan.chosen ? "See you there" : "It's on. When works?";
+  $("tentativeLead").textContent = plan.chosen ? "The time is picked. Let everyone know if you're in." : "The plan is set; the date isn't. Vote on a time, or suggest one.";
+  // No date yet: the times to vote on open from "Vote on a time"; "Suggest a time" adds one.
+  const noDate = !plan.chosen;
+  $("voteActions").hidden = !noDate;
+  $("voteOnTime").setAttribute("aria-expanded", String(noDate && ui.voteOpen));
+  $("tentativeSuggestions").hidden = noDate && !ui.voteOpen;
+  if (!noDate) $("suggestTimeForm").hidden = true;
 
   const candidates = timeOptionsForPlan(plan, { all: true });
   renderBestTime(plan, candidates);
   const options = candidates.slice(0, 5);
   $("tentativeSuggestions").innerHTML = options.length
-    ? `<span>${plan.chosen ? "Other times" : "Vote on a time, then pick one"}</span>${options
+    ? `<span>${plan.chosen ? "Other times" : "Tap the heart on every time that works"}</span>${options
         .map((option) => {
           const mine = option.voters.includes(memberId);
           const names = option.voters.map((id) => session.state.members.find((member) => member.id === id)?.name).filter(Boolean);
@@ -1264,7 +1271,7 @@ function renderPlan() {
             `<button type="button" data-window="${option.start.getTime()}" data-window-end="${option.end.getTime()}"${session.guest ? ' disabled title="The group picks the time; vote with the heart"' : ' title="Pick this time"'}>${escapeHtml(formatWindow(option))}</button></span>`;
         })
         .join("")}`
-    : '<span>No shared window in that range yet — add more times or widen the search.</span>';
+    : '<span>No shared window in that range yet. Suggest a time, or widen the search.</span>';
 
   renderRsvp(plan, occurrence);
   renderCalendarAdd(plan);
@@ -2940,7 +2947,29 @@ function renderAccount(user) {
   renderChrome();
 }
 
-/* Tentative plan */
+/* Plans: a set time, or tentative (the group votes on when) */
+
+const pad2 = (value) => String(value).padStart(2, "0");
+const dateInputValue = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+const timeInputValue = (date) => `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
+
+/** Shows the fields for "Pick the time" or "Tentative", and only requires the ones in view. */
+function setPlanMode(mode) {
+  const set = mode === "set";
+  const radio = document.querySelector(`input[name="mode"][value="${set ? "set" : "tentative"}"]`);
+  if (radio) radio.checked = true;
+  $("planSetFields").hidden = !set;
+  $("planTentativeFields").hidden = set;
+  for (const id of ["planDate", "planFrom", "planTo"]) $(id).required = set;
+  const isRange = !set && document.querySelector('input[name="timing"]:checked')?.value === "range";
+  $("planStart").required = isRange;
+  $("planEnd").required = isRange;
+  $("planSubmit").textContent = set ? "Make plan" : "Save tentative plan";
+}
+
+for (const input of document.querySelectorAll('input[name="mode"]')) {
+  input.addEventListener("change", () => setPlanMode(input.value));
+}
 
 function openPlanDialog() {
   const plan = session.state.plan;
@@ -2955,10 +2984,18 @@ function openPlanDialog() {
   $("planStart").value = plan?.start || "";
   $("planEnd").value = plan?.end || "";
   $("dateRangeFields").hidden = plan?.timing !== "range";
-  $("planWhen").hidden = !ui.pendingWindow;
-  $("planWhen").textContent = ui.pendingWindow
-    ? `${formatDayStamp(ui.pendingWindow.start)}, ${formatClock(ui.pendingWindow.start)} – ${formatClock(ui.pendingWindow.end)}`
-    : "";
+  $("planWhen").hidden = true;
+  $("planDialogEyebrow").textContent = plan ? "EDIT PLAN" : "NEW PLAN";
+  // A picked window, or the plan's own time, fills the fields; a new plan starts at tomorrow evening.
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(18, 0, 0, 0);
+  const start = ui.pendingWindow?.start || (plan?.chosen ? new Date(plan.chosen) : tomorrow);
+  const end = ui.pendingWindow?.end || (plan?.chosen ? new Date(plan.chosenEnd || new Date(plan.chosen).getTime() + 2 * 3600000) : new Date(tomorrow.getTime() + 2 * 3600000));
+  $("planDate").value = dateInputValue(start);
+  $("planFrom").value = timeInputValue(start);
+  $("planTo").value = timeInputValue(end);
+  setPlanMode(ui.pendingWindow || plan?.chosen || !plan ? "set" : "tentative");
   $("planRepeat").innerHTML = REPEATS.map((entry) => `<option value="${entry.key}"${(plan?.repeat || "none") === entry.key ? " selected" : ""}>${entry.label}</option>`).join("");
   openDialog(dialogs.plan);
 }
@@ -2998,10 +3035,23 @@ $("tentativePlanForm").addEventListener("submit", async (event) => {
     updatedAt: new Date().toISOString(),
   };
   const previous = session.state.plan;
-  // Opened from "Plan something": that window becomes the plan's time.
-  const picked = ui.pendingWindow
-    ? { chosen: ui.pendingWindow.start.toISOString(), chosenEnd: ui.pendingWindow.end.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, chosenBy: memberId }
-    : null;
+  const settingTime = form.get("mode") === "set";
+  let picked = null;
+  if (settingTime) {
+    const date = String(form.get("date") || "");
+    const from = new Date(`${date}T${form.get("from")}`);
+    const to = new Date(`${date}T${form.get("to")}`);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) {
+      showToast("Pick a day and a time.");
+      return;
+    }
+    if (to <= from) {
+      showToast("The plan ends before it starts.");
+      return;
+    }
+    picked = { chosen: from.toISOString(), chosenEnd: to.toISOString(), timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, chosenBy: memberId };
+    Object.assign(plan, { timing: "range", start: date, end: date });
+  }
   ui.pendingWindow = null;
   if (plan.timing === "range" && plan.start && plan.end && plan.end < plan.start) {
     showToast("The end of the range comes before the start.");
@@ -3019,13 +3069,57 @@ $("tentativePlanForm").addEventListener("submit", async (event) => {
       kept.createdBy = memberId;
       kept.createdAt = new Date().toISOString();
     }
+    // Keeping the time picked only when the plan still has a set time; "Tentative" reopens the vote.
+    if (!settingTime) for (const key of ["chosen", "chosenEnd", "chosenBy"]) delete kept[key];
     draft.plan = { ...plan, id: draft.plan?.id || plan.id, ...kept, ...(picked || {}) };
-  }, { note: `Tentative plan: ${plan.activity}` });
+  }, { note: picked ? `Plan: ${plan.activity}, ${formatDayStamp(new Date(picked.chosen))} at ${formatClock(new Date(picked.chosen))}` : `Tentative plan: ${plan.activity}` });
+  if (!picked) {
+    ui.voteOpen = true;
+    renderPlan();
+  }
   dialogs.plan.close();
-  showToast("Tentative plan saved — suggested windows are below.");
-  // Tell the group (people with notifications on get a push).
-  if (saved && !previous) announce("plan-proposed");
+  showToast(picked
+    ? `Plan made: ${formatDayStamp(new Date(picked.chosen))} at ${formatClock(new Date(picked.chosen))}.`
+    : "Tentative plan saved. Vote on a time below, or suggest one.");
+  // Tell the group once (people with notifications on get a push).
   if (saved && picked && picked.chosen !== previous?.chosen) announce("time-chosen");
+  else if (saved && !previous) announce("plan-proposed");
+});
+
+$("voteOnTime").addEventListener("click", () => {
+  ui.voteOpen = !ui.voteOpen;
+  renderPlan();
+  if (ui.voteOpen) $("tentativeSuggestions").querySelector(".time-vote")?.focus();
+});
+
+$("suggestTimeButton").addEventListener("click", () => {
+  const form = $("suggestTimeForm");
+  form.hidden = !form.hidden;
+  $("suggestTimeButton").setAttribute("aria-expanded", String(!form.hidden));
+  if (form.hidden) return;
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  $("suggestDate").value ||= dateInputValue(tomorrow);
+  $("suggestFrom").value ||= "18:00";
+  $("suggestDate").focus();
+});
+
+// A suggested time is a time option with your vote on it, so everyone (guests too) can vote for it.
+$("suggestTimeForm").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const start = new Date(`${$("suggestDate").value}T${$("suggestFrom").value}`);
+  if (Number.isNaN(start.getTime())) return showToast("Pick a day and a time.");
+  if (start <= new Date()) return showToast("Pick a time that hasn't happened yet.");
+  const key = start.toISOString();
+  await mutate((draft) => {
+    if (!draft.plan || (draft.plan.timeVotes?.[key] || []).includes(memberId)) return;
+    draft.plan.timeVotes = toggleTimeVote(draft.plan.timeVotes, key, memberId);
+  });
+  $("suggestTimeForm").hidden = true;
+  $("suggestTimeButton").setAttribute("aria-expanded", "false");
+  ui.voteOpen = true;
+  renderPlan();
+  showToast(`Suggested ${formatDayStamp(start)} at ${formatClock(start)}, with your vote. Others can vote on it now.`);
 });
 
 $("rsvpRow").addEventListener("click", async (event) => {
@@ -3045,8 +3139,8 @@ $("rsvpRow").addEventListener("click", async (event) => {
 $("removeTentativePlan").addEventListener("click", async () => {
   await mutate((draft) => {
     draft.plan = null;
-  }, { note: "Tentative plan removed" });
-  showToast("Tentative plan removed.");
+  }, { note: "Plan removed" });
+  showToast("Plan removed.");
 });
 
 $("tentativeSuggestions").addEventListener("click", async (event) => {

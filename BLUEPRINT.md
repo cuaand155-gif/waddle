@@ -99,6 +99,7 @@ Status key: ✅ proven by an automated browser test · 🧪 proven by unit/API t
 | Feature | Where | Proven by | Status |
 |---|---|---|---|
 | Propose a plan, vote on times, pick one, RSVP | Tentative plan, `lib/hangout.js` | e2e "propose a plan…" | ✅ |
+| "Make a plan": set the date and time now, or make it tentative (the plan is on, no date yet); a tentative plan has "Vote on a time" (the times to vote on) and "Suggest a time" (adds a time with your vote, so guests can vote on it too) | Plan dialog and card, `app.js` (`setPlanMode`, `#voteOnTime`, `#suggestTimeForm`) | e2e "Make a plan: set the date and time, or make it tentative…" | ✅ |
 | Best time: one suggested time from the votes and who's free, picked with one tap (never picked by itself) | `#bestTime`, `suggestBestTime`, `whoIsFree` | e2e "the best time follows the votes, and one tap picks it"; `hangout`, `planner` tests | ✅ |
 | Talk the plan over: comments under the plan; members and guests add theirs and delete only their own | `#planChat`, `plan.comments`, `applyGuestUpdate` | e2e "comments: send with Enter…", "a guest talks the plan over…"; `hangout`, `guests` tests | ✅ |
 | Repeating plans (weekly etc.) | `#planRepeat` | e2e "repeating plans roll on…"; `hangout` tests | ✅ |
