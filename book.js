@@ -72,7 +72,7 @@ function renderDays() {
     .map((key) => {
       const date = new Date(byDay.get(key)[0].start);
       const active = key === state.day;
-      return `<button type="button" class="booking-day${active ? " active" : ""}" role="tab" aria-selected="${active}" data-day="${key}">` +
+      return `<button type="button" class="booking-day${active ? " active" : ""}" aria-pressed="${active}" data-day="${key}">` +
         `<small>${dayLabel.format(date)}</small><strong>${dayNumber.format(date)}</strong><span>${monthLabel.format(date)}</span></button>`;
     })
     .join("");
@@ -111,6 +111,7 @@ $("bookingDays").addEventListener("click", (event) => {
   if (!button) return;
   state.day = button.dataset.day;
   renderDays();
+  $("bookingDays").querySelector(`[data-day="${state.day}"]`)?.focus({ preventScroll: true });
 });
 
 $("bookingTimes").addEventListener("click", (event) => {

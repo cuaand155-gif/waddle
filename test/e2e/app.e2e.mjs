@@ -344,18 +344,19 @@ describe("calendars", () => {
   browserTest("Calendar links: connect Google via ?calendar=1, then disconnect", { signedIn: true }, async ({ page, go }) => {
     await go("/?calendar=1");
     await page.waitForFunction(() => /Synced/.test(document.querySelector("#googleCalendarButton")?.textContent || ""));
+    assert.deepEqual(await page.evaluate(() => ({ persistent: localStorage.getItem("gatherly-google-token"), session: Boolean(sessionStorage.getItem("gatherly-google-token")) })), { persistent: null, session: true });
     await page.locator("#calendarButton").click();
     assert.match(await page.locator("#calendarSources").innerText(), /Google Calendar[\s\S]*2 busy blocks/);
     assert.match(await page.locator("#googleCalendarState").innerText(), /Connected/);
     await page.locator("[data-remove-source]").first().click();
     await page.waitForFunction(() => /Connect/.test(document.querySelector("#googleCalendarButton")?.textContent || ""));
-    assert.match(await toast(page), /disconnected/i);
+    assert.match(await toast(page), /removed from this device/i);
     assert.match(await page.locator("#calendarSources").innerText(), /No calendar links yet/);
     const sources = await page.evaluate(() => JSON.parse(localStorage.getItem("gatherly-calendar-sources") || "[]"));
     assert.equal(sources.length, 0);
   });
 
-  browserTest("--google-server: syncs through the server, and disconnecting deletes the stored token", { signedIn: true, googleServer: true }, async ({ page, go, google }) => {
+  browserTest("--google-server: syncs through the server, and disconnecting deletes the stored token", { signedIn: true, googleServer: true, allowErrors: /status of 503/ }, async ({ page, go, google }) => {
     await go("/");
     await page.waitForFunction(() => /Synced/.test(document.querySelector("#googleCalendarButton")?.textContent || ""));
     await page.locator("#calendarButton").click();
@@ -363,9 +364,31 @@ describe("calendars", () => {
     assert.match(await page.locator("#googleCalendarState").innerText(), /Keeps syncing on its own/);
     const events = await page.evaluate(() => JSON.stringify(JSON.parse(localStorage.getItem("gatherly-my-events") || "{}")));
     assert.ok(events.includes("Server-synced brunch"));
+    google.failDelete = true;
+    await page.locator("[data-remove-source]").first().click();
+    await toastSays(page, /Could not confirm Google disconnect/);
+    assert.match(await toast(page), /Could not confirm Google disconnect/);
+    assert.match(await page.locator("#calendarSources").innerText(), /Google Calendar/);
+    assert.equal(google.deleted, 0);
+    google.failDelete = false;
     await page.locator("[data-remove-source]").first().click();
     await page.waitForFunction(() => /Connect/.test(document.querySelector("#googleCalendarButton")?.textContent || ""));
     assert.equal(google.deleted, 1);
+  });
+
+  browserTest("signed-out removal only clears this device and does not claim to disconnect the server", { signedIn: true, googleServer: true }, async ({ page, go, google }) => {
+    await go("/");
+    await page.waitForFunction(() => /Synced/.test(document.querySelector("#googleCalendarButton")?.textContent || ""));
+    await page.locator("#accountButton").click();
+    await page.locator("#openAccountFromProfile").click();
+    await page.locator("#signOutButton").click();
+    await page.waitForFunction(() => document.querySelector("#accountStatus")?.textContent === "Not signed in");
+    await page.locator("#accountDialog .close-dialog").click();
+    await page.locator("#calendarButton").click();
+    await page.locator("[data-remove-source]").first().click();
+    await toastSays(page, /Sign in to disconnect any server connection/);
+    assert.match(await toast(page), /Sign in to disconnect any server connection/);
+    assert.equal(google.deleted, 0);
   });
 
   browserTest("Calendar links say when Google last synced, and why a sync didn't work", { signedIn: true, googleServer: true, allowErrors: /status of 502/ }, async ({ page, go }) => {
@@ -415,6 +438,9 @@ describe("public booking page", () => {
     await go("/book/alexi-7fq2x", { app: false });
     await page.locator(".booking-time").first().waitFor();
     assert.match(await page.locator("#bookingTitle").innerText(), /Coffee chat/);
+    await page.locator(".booking-day").first().focus();
+    await page.keyboard.press("Enter");
+    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains("booking-day")), true, "keyboard focus stays on the selected day");
     await page.locator(".booking-time").nth(1).click();
     assert.match(await page.locator("#guestEmailHint").innerText(), /hasn't set up email/, "no email is promised");
     await page.fill("#guestName", "Sam Rivera");

@@ -240,7 +240,7 @@ let hiddenKeys = new Set();
 // Friends at a glance: their "free now" and what their shared calendar says.
 const glance = { presence: new Map(), shares: new Map() };
 // Server-side Google syncing (api/google.js): available here? consent stored?
-const googleServer = { configured: false, connected: false, handedOver: null };
+const googleServer = { configured: false, connected: false, known: false, handedOver: null };
 
 let demoNoticeShown = false;
 const noteDemoMode = () => {
@@ -354,7 +354,7 @@ function renderSignInGate() {
       : gate === "revoked" ? "Ask whoever sent it for a new link. Already in the group? Sign in."
         : gate === "locked" ? "The group's owner only lets signed-in people in. Sign in with Google to join."
           : "Groups share when people are free, so only signed-in people can open them. It's free and takes one tap with Google.";
-  $("gateNote").textContent = session.gateNote || (joining ? "Guests see when people are busy or free, never what they're doing." : "");
+  $("gateNote").textContent = session.gateNote || (joining ? "Your name, times, votes and comments are visible to group members and anyone with this invite link. Guests cannot see calendar event details." : "");
   if (joining && !$("guestName").value) $("guestName").value = profile.name || "";
 }
 
@@ -2656,16 +2656,36 @@ $("icsForm").addEventListener("submit", async (event) => {
   field.value = "";
 });
 
-$("calendarSources").addEventListener("click", (event) => {
+$("calendarSources").addEventListener("click", async (event) => {
   const button = event.target.closest("[data-remove-source]");
   if (!button) return;
-  const [removed] = calendarSources.splice(Number(button.dataset.removeSource), 1);
+  const index = Number(button.dataset.removeSource);
+  const source = calendarSources[index];
+  if (!source) return;
+  button.disabled = true;
+  let deviceOnly = source.type === "google" && !ui.user;
+  if (source.type === "google" && ui.user) {
+    try {
+      const response = await googleApi("DELETE");
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok || (result.deleted !== true && (googleServer.connected || googleServer.configured || !googleServer.known))) {
+        throw new Error("Google disconnect was not confirmed.");
+      }
+      deviceOnly = result.deleted !== true;
+      googleServer.connected = false;
+      googleServer.known = true;
+    } catch {
+      button.disabled = false;
+      showToast("Could not confirm Google disconnect. Try again when Waddle is online; your calendar is still connected.");
+      return;
+    }
+  }
+  const [removed] = calendarSources.splice(index, 1);
   saveSources();
   if (removed) {
     delete myEvents[removed.type === "google" ? "google" : `ics:${removed.url}`];
     if (removed.type === "google") {
       clearGoogleToken();
-      if (googleServer.connected) googleApi("DELETE").catch(() => {});
       googleServer.connected = false;
       window.localStorage.removeItem(STORAGE.googleHealth);
       renderGoogleState();
@@ -2675,7 +2695,11 @@ $("calendarSources").addEventListener("click", (event) => {
     schedulePublish();
     publishKindToGroup(removed.type === "google" ? "google" : "ics", syncRange(), { quiet: true });
   }
-  showToast(removed?.type === "google" ? "Google Calendar disconnected." : "Calendar link removed from this device.");
+  showToast(removed?.type === "google"
+    ? deviceOnly
+      ? ui.user ? "Google Calendar removed from this device; no server connection was available." : "Google Calendar removed from this device. Sign in to disconnect any server connection."
+      : "Google Calendar disconnected."
+    : "Calendar link removed from this device.");
 });
 
 $("syncCalendarButton").addEventListener("click", async () => {
@@ -3251,7 +3275,7 @@ function renderInviteControls() {
   $("renewInvite").hidden = false;
   $("inviteStatus").textContent = invite.revoked
     ? "The link is off: nobody new can join with it, and guests can't open the group."
-    : `Anyone with this link can join as a guest with just a name${guests ? ` (${guests} so far)` : ""}. Guests see busy/free and the plan, never event names or places.`;
+    : `Anyone with this link can join as a guest with just a name${guests ? ` (${guests} so far)` : ""}. Guests see names, busy/free times, plans, votes and comments, never calendar event names or places.`;
   $("revokeInvite").hidden = invite.revoked;
   $("renewInvite").textContent = invite.revoked ? "Make a new link" : "New link";
 }
@@ -5182,6 +5206,7 @@ async function start() {
       } else {
         renderFriends();
         loadGlance();
+        loadGoogleServer();
         if (session.slug !== DEMO_SLUG) await loadWorkspace();
       }
     });
@@ -5220,28 +5245,33 @@ async function start() {
 /**
  * Google's calendar access token (handed over once, on the OAuth callback;
  * never written to the shared workspace). It lasts about an hour and can't be renewed
- * without a server-side client secret, so it's kept (with its expiry) across
- * tabs and reloads until then, and the app asks to reconnect after.
+ * without a server-side client secret. It stays in this tab's session storage
+ * until expiry; the server holds the separate refresh token when configured.
  */
+let volatileGoogleToken = null;
 function googleToken() {
   try {
-    const saved = JSON.parse(window.localStorage.getItem(STORAGE.googleToken) || "null");
+    window.localStorage.removeItem(STORAGE.googleToken); // clear older persistent copies
+    const saved = JSON.parse(window.sessionStorage.getItem(STORAGE.googleToken) || "null");
     if (saved?.token && saved.expires > Date.now()) return saved.token;
   } catch {
     /* Old plain-string value or blocked storage: treat as not connected. */
   }
-  return null;
+  return volatileGoogleToken?.expires > Date.now() ? volatileGoogleToken.token : null;
 }
 
 function setGoogleToken(token) {
+  volatileGoogleToken = { token, expires: Date.now() + 55 * 60 * 1000 };
   try {
-    window.localStorage.setItem(STORAGE.googleToken, JSON.stringify({ token, expires: Date.now() + 55 * 60 * 1000 }));
+    window.localStorage.removeItem(STORAGE.googleToken);
+    window.sessionStorage.setItem(STORAGE.googleToken, JSON.stringify(volatileGoogleToken));
   } catch {
     /* Storage blocked: syncing still works on this page. */
   }
 }
 
 function clearGoogleToken() {
+  volatileGoogleToken = null;
   try {
     window.localStorage.removeItem(STORAGE.googleToken);
     window.sessionStorage.removeItem(STORAGE.googleToken); // where older versions kept it
@@ -5265,16 +5295,21 @@ async function loadGoogleServer() {
   if (!ui.user) {
     googleServer.configured = false;
     googleServer.connected = false;
+    googleServer.known = false;
     renderGoogleState();
     return;
   }
   try {
-    const payload = await (await googleApi("GET")).json();
+    const response = await googleApi("GET");
+    if (!response.ok) throw new Error(`google-${response.status}`);
+    const payload = await response.json();
     googleServer.configured = payload.configured === true;
     googleServer.connected = payload.connected === true;
+    googleServer.known = true;
     // Connected on another device: list it here too, so it can be removed and its sync time kept.
     if (googleServer.connected) ensureGoogleSource();
   } catch {
+    googleServer.known = false;
     /* Offline or no server: keep the browser-only flow. */
   }
   renderGoogleState();
@@ -5298,6 +5333,7 @@ function captureProviderToken(authSession) {
         .then((payload) => {
           googleServer.configured = payload.configured === true;
           googleServer.connected = payload.connected === true;
+          googleServer.known = true;
           renderGoogleState();
         })
         .catch(() => {});

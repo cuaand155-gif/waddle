@@ -68,8 +68,9 @@ async function storedToken(db, userId, init = {}) {
 }
 
 async function forget(db, userId) {
+  const result = await rest(db, `google_tokens?${new URLSearchParams({ user_id: `eq.${userId}` })}`, { method: "DELETE" });
+  if (!result.ok) throw new Error(`db-${result.status}`);
   accessCache.delete(userId);
-  await rest(db, `google_tokens?${new URLSearchParams({ user_id: `eq.${userId}` })}`, { method: "DELETE" });
 }
 
 // Google's answers that mean this server's own OAuth client is wrong, not the
@@ -192,9 +193,14 @@ async function handle(request, response) {
   }
   const db = config();
   const keys = googleKeys();
-  if (!db || !keys) return send(response, 200, { configured: false, connected: false });
+  if (!db || (!keys && request.method !== "DELETE")) return send(response, 200, { configured: false, connected: false });
   const userId = await userFromToken(db.url, db.key, bearer(request));
   if (!userId) return send(response, 401, { error: "Sign in first." });
+
+  if (request.method === "DELETE") {
+    await forget(db, userId);
+    return send(response, 200, { configured: Boolean(keys), connected: false, deleted: true });
+  }
 
   if (request.method === "POST") {
     const payload = readBody(request);
@@ -208,11 +214,6 @@ async function handle(request, response) {
     if (!result.ok) throw new Error(`db-${result.status}`);
     accessCache.delete(userId);
     return send(response, 200, { configured: true, connected: true });
-  }
-
-  if (request.method === "DELETE") {
-    await forget(db, userId);
-    return send(response, 200, { configured: true, connected: false });
   }
 
   const query = request.query || {};

@@ -2,7 +2,7 @@
 
 The complete picture of what Waddle is supposed to do, where each piece lives, what proves it works, and what's left. Use it as the checklist before calling Waddle "done", and update it whenever a feature is added or changed. The product rules for what each view may show are in [CLAUDE.md](CLAUDE.md) and win over anything here.
 
-Last checked: 2026-10-19. The friend profile and text-invite update passed 293 unit/API tests and 72 browser tests; focused browser checks passed again after the contact-picker test. See [LAUNCH_READINESS.md](LAUNCH_READINESS.md) for the public launch checklist. `rls-server-test.sql` passed 10/10 on the live project 2026-09-27. Database rules were last checked on the live project 2026-10-01 after the phone-number schema: `rls-test.sql` 22/22 and `rls-shares-test.sql` 24/24.
+Last checked: 2026-10-19. The privacy update passed 295 unit/API tests and 73 browser tests. See [PROJECT.md](PROJECT.md) for the running plan, [DATA_INVENTORY.md](DATA_INVENTORY.md) for current data flows and [LAUNCH_READINESS.md](LAUNCH_READINESS.md) for public launch work. `rls-server-test.sql` passed 10/10 on the live project 2026-09-27. The live `rls-test.sql` passed 26/26 on 2026-10-19 after profile visibility was restricted; `rls-shares-test.sql` last passed 24/24 on 2026-10-01.
 
 ## 1. What Waddle is
 
@@ -52,7 +52,7 @@ Status key: ✅ proven by an automated browser test · 🧪 proven by unit/API t
 | Guest writes are rate-limited (40 per 5 min per guest, 20 joins per hour per group) and size-capped (256 KB) | `countWrite`, `api/workspace.js` | `guests` API tests | 🧪 (server only, no screen) |
 | Friend requests (send, accept) | Friends page (sidebar), `lib/friends.js` | e2e "send a friend request, they accept it…" (two browsers); `friends` tests | ✅ |
 | Friends page: friends without a group | `#friendsDialog`, sidebar Friends | e2e "the Friends page: a request by phone number…" | ✅ |
-| Friend requests by phone number | `lib/friends.js`, `lib/phone.js`, `recipient_phone` | e2e "…by phone number, accepted by the person with that number" (two browsers); `friends`, `phone` tests; `supabase/rls-test.sql` phone checks (22/22 on the live project, 2026-10-01) | ✅ |
+| Friend requests by phone number | `lib/friends.js`, `lib/phone.js`, `recipient_phone` | e2e "…by phone number, accepted by the person with that number" (two browsers); `friends`, `phone` tests; `supabase/rls-test.sql` phone/profile checks (26/26 on the live project, 2026-10-19) | ✅ |
 | Friend profile with dates and count of completed plans where both friends RSVP Yes | `lib/hangout-history.js`, `api/groups.js`, Friends → Profile | `hangout-history`, `groups-api` tests; e2e "a friend's profile counts completed plans together" | ✅ (records start when this feature ships; older replaced plans cannot be recovered) |
 | Text a group invite from the phone's messages app; choose a contact where the browser supports it | People → Text this invite | e2e "share a group or a plan…" checks the SMS draft link | ✅ (contact picker availability depends on browser; no automatic send) |
 | 1-on-1 with a friend: "You're both free", plan it, same space for both | Friends → Calendar / 1-on-1, `pairSlug`, `freeTogether` | e2e "a 1-on-1 with a friend…" (both friends reach the same link); `groups-sync`, `planner` tests | ✅ |
@@ -65,7 +65,7 @@ Status key: ✅ proven by an automated browser test · 🧪 proven by unit/API t
 
 | Feature | Where | Proven by | Status |
 |---|---|---|---|
-| Connect Google Calendar, then disconnect | Calendar links, `app.js` | e2e "connect Google…" | ✅ |
+| Connect Google Calendar, then disconnect | Calendar links, `app.js`, `api/google.js` | e2e "connect Google…", including failed server deletion and retry; `google-api` tests check failed deletion keeps the token | ✅ |
 | Google keeps syncing past the hour, on every device | `api/google.js` | e2e `--google-server`; `google-api` tests | ✅ (real Google: 🙋) |
 | Calendar links say when Google last synced, or why the last sync didn't work (kept per device in `gatherly-google-health`) | `noteGoogleSync`, `renderGoogleState` in `app.js` | e2e "Calendar links say when Google last synced…" | ✅ |
 | Any ICS link (iCloud, Outlook, Google secret address) | `api/calendar.js`, `lib/ics.js` | e2e "an ICS link…" (a real .ics parsed by `lib/ics.js`; only the download is faked); `api`, `ics` tests for fetching and its safety checks | ✅ |
@@ -93,7 +93,7 @@ Status key: ✅ proven by an automated browser test · 🧪 proven by unit/API t
 | Share more for a while (today, weekend, 24 h, 7 days) | `grantEnd`, `publish_share` RPC | e2e "share more for a while…" (start, until, fallback, stop); `sharing` tests | ✅ |
 | Private events hidden from everyone (only a hash is stored) | `hideHash`, `withoutHidden` | `sharing` tests; e2e (preview, as Sam, and in the group) | ✅ |
 | Choices sync across devices | `sharing_settings`, `mergeSharing` | e2e "sharing choices follow you to another device" (second browser, fake database); `sharing` tests | ✅ (real accounts: 🙋) |
-| Database only lets friends read what was shared | RLS, `publish_share`, `shared_calendars` | `supabase/rls-test.sql` (22 checks, phone numbers included) and `supabase/rls-shares-test.sql` (24 checks), run against the live project inside a transaction that rolls back | ✅ 46/46 on 2026-10-01 |
+| Database only lets friends read what was shared; profile names/photos only reach the owner or relevant friend-request parties | RLS, `publish_share`, `shared_calendars`, profile policies | `supabase/rls-test.sql` (26 checks including unrelated profile access, 2026-10-19) and `supabase/rls-shares-test.sql` (24 checks, 2026-10-01), run against the live project inside a transaction that rolls back | ✅ |
 | Free now status and strip | `lib/presence.js` | e2e "Free now strip" | ✅ |
 
 ### Plans
@@ -156,7 +156,7 @@ Done when: all rows are ✅ except the 🙋 ones, and both test commands pass. D
 
 1. ~~**Reconnect Google once**~~ Done: the server holds a Google connection saved 2026-09-25 with the live keys.
 2. **Turn on phone features** (new, 2026-09-26):
-   - ~~Run the updated `supabase/schema.sql`, then `supabase/rls-test.sql`~~ Done: the schema is on the live project, and the rules checks passed 22/22 (plus 24/24 for sharing) on 2026-10-01. Friend requests by phone work now.
+   - ~~Run the updated `supabase/schema.sql`, then `supabase/rls-test.sql`~~ Done: the schema is on the live project, and the request/profile rules checks passed 26/26 on 2026-10-19 (plus 24/24 for sharing on 2026-10-01). Friend requests by phone work now.
    - Supabase → Authentication → Sign In / Providers → **Phone**: turn it on and connect an SMS provider (Twilio, MessageBird, Vonage or Textlocal; each needs its own account and costs a little per text). Until then, "Text me a code" says phone sign-in isn't switched on yet.
 3. **Two-account test with a friend**: both sign in, add each other, check sharing levels, private events, Free now, a shared plan, and the group calendar. Open your booking link in a private window; Google events should show as unavailable.
 4. **Google's "unverified app" warning**: add friends as test users in Google Cloud (quick), or apply for verification (weeks).

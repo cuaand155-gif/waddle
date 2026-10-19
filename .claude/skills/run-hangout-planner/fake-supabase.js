@@ -146,7 +146,13 @@
             setTimeout(() => listeners.forEach((listener) => listener("SIGNED_IN", session)));
             return { data: { session, user }, error: null };
           },
-          async signOut() { return { error: null }; },
+          async signOut() {
+            who = "none";
+            user = null;
+            localStorage.setItem("fake-user", "none");
+            setTimeout(() => listeners.forEach((listener) => listener("SIGNED_OUT", null)));
+            return { error: null };
+          },
         },
         from: query,
         // The two share functions follow supabase/schema.sql: publish_share checks the

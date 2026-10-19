@@ -45,7 +45,7 @@ function withEnv(t, { google = true } = {}) {
 }
 
 /** Fake Supabase auth + PostgREST + Google, recording every call. */
-function fakeServices(t, { stored = null, tokenReply = { status: 200, body: { access_token: "fresh-access", expires_in: 3599 } }, eventsStatus = 200 } = {}) {
+function fakeServices(t, { stored = null, tokenReply = { status: 200, body: { access_token: "fresh-access", expires_in: 3599 } }, eventsStatus = 200, deleteStatus = 204 } = {}) {
   const calls = [];
   const table = { row: stored };
   t.mock.method(globalThis, "fetch", async (url, init = {}) => {
@@ -61,8 +61,8 @@ function fakeServices(t, { stored = null, tokenReply = { status: 200, body: { ac
         return new Response(null, { status: 201 });
       }
       if (method === "DELETE") {
-        table.row = null;
-        return new Response(null, { status: 204 });
+        if (deleteStatus === 204) table.row = null;
+        return new Response(null, { status: deleteStatus });
       }
     }
     if (href === "https://oauth2.googleapis.com/token") return json(tokenReply.status, tokenReply.body);
@@ -203,9 +203,27 @@ test("disconnecting deletes the stored token", async (t) => {
   withEnv(t);
   const { table, calls } = fakeServices(t, { stored: sealToken("1//x", SECRET) });
   const result = await call({ method: "DELETE" });
-  assert.deepEqual(result.body, { configured: true, connected: false });
+  assert.deepEqual(result.body, { configured: true, connected: false, deleted: true });
   assert.equal(table.row, null);
   assert.ok(calls.some((entry) => entry.method === "DELETE" && entry.href.includes(`user_id=eq.${USER}`)));
+});
+
+test("a failed server deletion keeps the token and reports failure", async (t) => {
+  withEnv(t);
+  const sealed = sealToken("1//x", SECRET);
+  const { table } = fakeServices(t, { stored: sealed, deleteStatus: 503 });
+  t.mock.method(console, "error", () => {});
+  const result = await call({ method: "DELETE" });
+  assert.equal(result.status, 502);
+  assert.equal(table.row, sealed);
+});
+
+test("a stored token can be deleted even when Google credentials are unavailable", async (t) => {
+  withEnv(t, { google: false });
+  const { table } = fakeServices(t, { stored: sealToken("1//x", SECRET) });
+  const result = await call({ method: "DELETE" });
+  assert.deepEqual(result.body, { configured: false, connected: false, deleted: true });
+  assert.equal(table.row, null);
 });
 
 test("other methods are not allowed", async (t) => {

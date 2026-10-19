@@ -99,7 +99,7 @@
           </section>
 
           <section class="guest-banner" id="guestBanner" hidden aria-label="You're a guest">
-            <div><strong>You're in as <span id="guestBannerName">a guest</span>.</strong><small>Mark when you're busy, vote on a time and RSVP. Everyone sees busy or free, never what anyone is doing.</small></div>
+            <div><strong>You're in as <span id="guestBannerName">a guest</span>.</strong><small>Mark when you're busy, vote on a time and RSVP. As a guest, you see busy/free times, not calendar event details.</small></div>
             <button class="outline-button" type="button" id="guestSignIn">Sign in to save and connect your calendar</button>
           </section>
 
@@ -413,6 +413,7 @@
       <p class="dialog-copy">Share the link so friends can add their own times, or add a placeholder for someone you’ll chase later.</p>
       <label class="field-label" for="inviteLink">Invite link</label>
       <div class="copy-row"><input class="text-input" id="inviteLink" readonly /><button class="outline-button" id="copyInviteLink" type="button">Copy</button></div>
+      <p class="form-hint">Anyone with a live invite link can join and see group names, plans, votes and comments. A chat app may show the group name or plan title in its link preview.</p>
       <label class="field-label" for="invitePhone">Text this invite</label>
       <div class="copy-row invite-phone-row">
         <input class="text-input" id="invitePhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Friend's phone number" maxlength="24" />

@@ -28,11 +28,17 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","email":"bob@test.invalid","role":"authenticated"}';
 insert into rls_results(check_name, passed, detail)
 select 'recipient reads a request addressed to their email', count(*) = 1, 'rows: ' || count(*) from public.friend_requests;
+insert into rls_results(check_name, passed, detail)
+select 'recipient sees the sender profile while a request is pending', count(*) = 1, 'profiles: ' || count(*)
+from public.profiles where id = '11111111-1111-1111-1111-111111111111';
 
 -- Carol: nothing to do with this request.
 set local request.jwt.claims = '{"sub":"33333333-3333-3333-3333-333333333333","email":"carol@test.invalid","role":"authenticated"}';
 insert into rls_results(check_name, passed, detail)
 select 'an unrelated account cannot read it', count(*) = 0, 'rows: ' || count(*) from public.friend_requests;
+insert into rls_results(check_name, passed, detail)
+select 'an unrelated account cannot read either profile', count(*) = 0, 'profiles: ' || count(*)
+from public.profiles where id in ('11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222');
 with attempt as (update public.friend_requests set status = 'accepted', recipient_id = '33333333-3333-3333-3333-333333333333' returning 1)
 insert into rls_results(check_name, passed, detail) select 'an unrelated account cannot answer it', count(*) = 0, 'updated: ' || count(*) from attempt;
 
@@ -77,6 +83,12 @@ end $$;
 set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","email":"bob@test.invalid","role":"authenticated"}';
 with attempt as (update public.friend_requests set status = 'accepted', recipient_id = '22222222-2222-2222-2222-222222222222', responded_at = now() where id = 'aaaaaaaa-0000-0000-0000-000000000001' returning 1)
 insert into rls_results(check_name, passed, detail) select 'the recipient can accept', count(*) = 1, 'updated: ' || count(*) from attempt;
+
+set local request.jwt.claims = '{"sub":"11111111-1111-1111-1111-111111111111","email":"alice@test.invalid","role":"authenticated"}';
+insert into rls_results(check_name, passed, detail)
+select 'a sender sees the accepted friend profile', count(*) = 1, 'profiles: ' || count(*)
+from public.profiles where id = '22222222-2222-2222-2222-222222222222';
+set local request.jwt.claims = '{"sub":"22222222-2222-2222-2222-222222222222","email":"bob@test.invalid","role":"authenticated"}';
 
 do $$ begin
   update public.friend_requests set requester_id = '33333333-3333-3333-3333-333333333333' where id = 'aaaaaaaa-0000-0000-0000-000000000001';
@@ -137,6 +149,9 @@ end $$;
 set local request.jwt.claims = '{"sub":"44444444-4444-4444-4444-444444444444","phone":"14165550123","role":"authenticated"}';
 insert into rls_results(check_name, passed, detail)
 select 'the owner of the number reads the request', count(*) = 1, 'rows: ' || count(*) from public.friend_requests;
+insert into rls_results(check_name, passed, detail)
+select 'the owner of the number sees the sender profile', count(*) = 1, 'profiles: ' || count(*)
+from public.profiles where id = '11111111-1111-1111-1111-111111111111';
 do $$ begin
   insert into public.friend_requests (requester_id, recipient_phone) values ('44444444-4444-4444-4444-444444444444', '+14165550123');
   insert into rls_results(check_name, passed, detail) values ('cannot send a request to your own number', false, 'the insert was allowed');

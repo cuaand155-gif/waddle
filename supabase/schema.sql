@@ -46,9 +46,9 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+-- The friend-request policies below add narrowly scoped profile reads after
+-- friend_requests exists. A signed-in stranger cannot browse every profile.
 drop policy if exists "Profiles are visible to signed-in users" on public.profiles;
-create policy "Profiles are visible to signed-in users"
-  on public.profiles for select to authenticated using (true);
 
 drop policy if exists "Users manage their own profile" on public.profiles;
 create policy "Users manage their own profile"
@@ -201,6 +201,24 @@ create policy "Either side can remove a request"
     or auth.uid() = recipient_id
     or lower(recipient_email) = lower(auth.jwt() ->> 'email')
     or public.phone_digits(recipient_phone) = public.phone_digits(auth.jwt() ->> 'phone')
+  );
+
+drop policy if exists "Request parties read each other's profiles" on public.profiles;
+create policy "Request parties read each other's profiles"
+  on public.profiles for select to authenticated
+  using (
+    exists (
+      select 1 from public.friend_requests fr
+      where fr.status in ('pending', 'accepted')
+        and (
+          (fr.requester_id = profiles.id and (
+            fr.recipient_id = (select auth.uid())
+            or lower(fr.recipient_email) = lower(auth.jwt() ->> 'email')
+            or public.phone_digits(fr.recipient_phone) = public.phone_digits(auth.jwt() ->> 'phone')
+          ))
+          or (fr.recipient_id = profiles.id and fr.requester_id = (select auth.uid()))
+        )
+    )
   );
 
 -- ---------------------------------------------------------------------------
@@ -434,8 +452,9 @@ create policy "Friends see each other's status"
 --     which the app actually reads, answers and acts on;
 --   * group membership lives in workspaces.state.members, so a workspace still
 --     works for people who never sign in;
---   * calendar links stay in the browser's local storage on purpose, so a
---     secret ICS address is never uploaded. Only the busy blocks are shared.
+--   * calendar links used for manual sync stay in the browser; if an owner
+--     enables calendar checks for a public booking page, up to three ICS URLs
+--     are stored in booking_pages. Groups receive only the filtered blocks.
 -- If an earlier version of this schema created those tables, they are simply
 -- unused; drop them by hand if you want them gone.
 

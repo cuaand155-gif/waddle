@@ -63,15 +63,16 @@ async function routeGoogleEvents(context) {
 
 /** api/google.js as if GOOGLE_CLIENT_ID/SECRET were set and a refresh token stored. Returns its state. */
 async function routeGoogleServer(context) {
-  const google = { connected: true, deleted: 0, posted: 0 };
+  const google = { connected: true, deleted: 0, posted: 0, failDelete: false };
   await context.route("**/api/google**", (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const json = (status, body) => route.fulfill({ status, contentType: "application/json", body: JSON.stringify(body) });
     if (request.method() === "DELETE") {
+      if (google.failDelete) return json(503, { error: "Calendar disconnect unavailable." });
       google.connected = false;
       google.deleted += 1;
-      return json(200, { configured: true, connected: false });
+      return json(200, { configured: true, connected: false, deleted: true });
     }
     if (request.method() === "POST") {
       google.connected = true;
