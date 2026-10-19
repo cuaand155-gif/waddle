@@ -332,7 +332,7 @@ function renderSignInGate() {
   const joining = gate === "join";
   $("signInGate").dataset.gate = gate;
   $("guestJoinForm").hidden = !joining;
-  $("gateSignIn").textContent = joining ? "Sign in to save and connect your calendar" : "Sign in with Google";
+  $("gateSignIn").textContent = joining ? "Sign in to save and connect your calendar" : "Continue with Google";
   $("gateSignIn").classList.toggle("primary-button", !joining);
   $("gateSignIn").classList.toggle("outline-button", joining);
   $("gateEyebrow").textContent = gate === "revoked" ? "LINK TURNED OFF" : gate === "locked" ? "MEMBERS ONLY" : "YOU'RE INVITED";
@@ -2934,11 +2934,12 @@ function renderAccount(user) {
   $("accountStatusDetail").textContent = signedIn ? `${name} connected` : session.needsSignIn ? "Sign in to open this group." : "Your local planner session is active.";
   $("accountStatusDot").style.background = signedIn ? "#64cf8b" : "#aaa7b5";
   $("googleSignInButton").hidden = signedIn;
+  $("signupHint").hidden = signedIn;
   $("phoneSignInForm").hidden = signedIn;
   $("signOutButton").hidden = !signedIn;
   $("accountCopy").textContent = signedIn
     ? "Your availability follows this account between devices."
-    : "Sign in to keep your groups and availability wherever you plan.";
+    : "Sign in or create a free account to keep your groups and availability wherever you plan.";
   $("authNote").textContent = signedIn
     ? viaPhone
       ? "Signed in with your phone number. Friends can find you by it."

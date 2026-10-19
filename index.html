@@ -68,8 +68,9 @@
             <input class="text-input" id="guestName" name="name" autocomplete="given-name" placeholder="Your first name" required maxlength="60" />
             <button class="primary-button full" type="submit">Join as a guest</button>
           </form>
-          <button class="primary-button full" type="button" id="gateSignIn">Sign in with Google</button>
+          <button class="primary-button full" type="button" id="gateSignIn">Continue with Google</button>
           <button class="outline-button full" type="button" id="gatePhone">Use my phone number</button>
+          <p class="auth-note">New to Waddle? Continuing creates a free account. Google Calendar access is optional and requested separately.</p>
           <p class="form-hint gate-note" id="gateNote"></p>
           <a class="text-button" href="/">Just looking? Try the demo group</a>
         </div>
@@ -339,9 +340,10 @@
 
     <dialog id="accountDialog">
       <div class="dialog-header"><div><p class="eyebrow">YOUR ACCOUNT</p><h2 id="accountTitle">Keep your plans together.</h2></div><button class="close-dialog" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
-      <p class="dialog-copy" id="accountCopy">Sign in to keep your groups and availability wherever you plan.</p>
+      <p class="dialog-copy" id="accountCopy">Sign in or create a free account to keep your groups and availability wherever you plan.</p>
       <div class="account-status"><span class="account-status-dot" id="accountStatusDot"></span><div><strong id="accountStatus">Not signed in</strong><small id="accountStatusDetail">Your local planner session is active.</small></div></div>
       <button class="google-button" id="googleSignInButton"><span class="google-logo">G</span> Continue with Google</button>
+      <p class="form-hint" id="signupHint">New to Waddle? Google will create your account. Calendar access is optional and requested separately.</p>
       <form id="phoneSignInForm" class="phone-signin">
         <p class="auth-divider"><span>or use your phone</span></p>
         <label class="field-label" for="phoneNumber">Phone number</label>

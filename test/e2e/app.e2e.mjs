@@ -1420,12 +1420,12 @@ describe("profile", () => {
     assert.match(await page.locator("#groupCalGrid .gc-person.is-you").innerText(), /Alexi Morgan \(you\)/);
 
     await page.locator("#settingsButton").click();
-    await page.locator('#palettePicker [data-palette="plum"]').click();
-    assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), "plum");
+    await page.locator('#palettePicker [data-palette="teal"]').click();
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), "teal");
     await go("/");
-    assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), "plum", "kept after a reload");
+    assert.equal(await page.evaluate(() => document.documentElement.dataset.palette), "teal", "kept after a reload");
     await page.locator("#settingsButton").click();
-    assert.equal(await page.locator('#palettePicker [data-palette="plum"]').getAttribute("aria-checked"), "true");
+    assert.equal(await page.locator('#palettePicker [data-palette="teal"]').getAttribute("aria-checked"), "true");
     assert.equal(await page.locator("#profileName").innerText(), "Alexi Morgan");
   });
 });

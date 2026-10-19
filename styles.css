@@ -165,6 +165,10 @@ dialog[open]{animation:gatherly-dialog .32s var(--ease)}
 :root[data-palette="plum"]{--purple:#8b3f6f;--purple-dark:#70315a;--lavender:#f1e0ea;--accent-some:rgba(139,63,111,.24);--overlap:#975079}
 :root[data-palette="ocean"]{--purple:#2e6e8e;--purple-dark:#245873;--lavender:#ddebf1;--accent-some:rgba(46,110,142,.24);--overlap:#3f7e9d}
 :root[data-palette="marigold"]{--purple:#b7791f;--purple-dark:#8f5d15;--lavender:#f6e8cc;--accent-some:rgba(183,121,31,.28);--overlap:#c4892f}
+:root[data-palette="cobalt"]{--purple:#395ab4;--purple-dark:#2d4892;--lavender:#e3e9fa;--accent-some:rgba(57,90,180,.25);--overlap:#5473c2}
+:root[data-palette="teal"]{--purple:#187b72;--purple-dark:#116158;--lavender:#d9f0eb;--accent-some:rgba(24,123,114,.24);--overlap:#329286}
+:root[data-palette="raspberry"]{--purple:#a33d59;--purple-dark:#842c45;--lavender:#f7e1e9;--accent-some:rgba(163,61,89,.25);--overlap:#b55570}
+:root[data-palette="slate"]{--purple:#536478;--purple-dark:#415164;--lavender:#e5eaf0;--accent-some:rgba(83,100,120,.25);--overlap:#6d7d91}
 .palette-picker{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px}
 .palette-swatch{display:flex;align-items:center;gap:8px;background:var(--surface);border-radius:999px;padding:6px 12px 6px 6px;box-shadow:var(--shadow);font-size:12px;font-weight:600;color:var(--ink);transition:box-shadow .3s var(--ease),transform .3s var(--ease)}
 .palette-swatch i{width:22px;height:22px;border-radius:50%;display:block}
@@ -339,6 +343,10 @@ dialog.wide-dialog{width:min(860px,calc(100% - 32px))}
 :root[data-theme="dark"][data-palette="plum"]{--purple:#d086b5;--purple-dark:#dfa3c8}
 :root[data-theme="dark"][data-palette="ocean"]{--purple:#5ea6c8;--purple-dark:#8cc2dc}
 :root[data-theme="dark"][data-palette="marigold"]{--purple:#d69a3e;--purple-dark:#e6b76b}
+:root[data-theme="dark"][data-palette="cobalt"]{--purple:#91aaff;--purple-dark:#b4c4ff}
+:root[data-theme="dark"][data-palette="teal"]{--purple:#68c3b4;--purple-dark:#91d5c9}
+:root[data-theme="dark"][data-palette="raspberry"]{--purple:#ee8ca6;--purple-dark:#f5abc0}
+:root[data-theme="dark"][data-palette="slate"]{--purple:#a9bed7;--purple-dark:#c4d3e5}
 :root[data-theme="dark"] body::after{opacity:.03}
 :root[data-theme="dark"] .primary-button{box-shadow:0 12px 24px -12px rgba(0,0,0,.7)}
 :root[data-theme="dark"] dialog{box-shadow:0 30px 80px -20px rgba(0,0,0,.7),0 0 0 1px rgba(255,236,220,.05)}
