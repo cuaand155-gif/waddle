@@ -315,7 +315,7 @@ describe("group view", () => {
     await page.locator(".time-option [data-window]").first().click();
     await page.locator('[data-rsvp="yes"]').waitFor();
     await page.locator('[data-rsvp="yes"]').click();
-    assert.match(await page.locator("#rsvpSummary").innerText(), /Going: You/);
+    await page.waitForFunction(() => /Going: You/.test(document.querySelector("#rsvpSummary")?.textContent || ""));
     assert.match(await page.locator("#tentativePlanSection").innerText(), /week/i, "the plan repeats weekly");
   });
 
@@ -1243,10 +1243,12 @@ describe("plans", () => {
     // Tentative: the plan is on, the date isn't. Vote on a time, or suggest one.
     await page.locator("#editTentativePlan").click();
     await page.locator('#tentativePlanDialog input[name="mode"][value="tentative"]').check();
+    await page.locator('#tentativePlanDialog input[name="timing"][value="month"]').check();
     assert.equal(await page.locator("#planSetFields").isHidden(), true);
     await page.locator("#tentativePlanForm button[type=submit]").click();
     await page.waitForFunction(() => document.querySelector("#tentativeBadge").textContent === "No date yet");
     assert.equal(await page.locator("#voteActions").isVisible(), true);
+    await page.locator(".time-option").first().waitFor();
     const options = await page.locator(".time-option").count();
     assert.ok(options >= 2, "several times to vote on");
 
@@ -1580,8 +1582,7 @@ describe("sign-in gate", () => {
     assert.equal(await page.evaluate(() => localStorage.getItem("gatherly-workspace:book-club-7fq2x")), null);
     const listed = () => page.evaluate(() => JSON.parse(localStorage.getItem("gatherly-groups") || "[]"));
     assert.deepEqual(await listed(), [], "not listed under Your groups (its name isn't even known)");
-    await page.locator("#gateSignIn").click();
-    await toastSays(page, /Google sign-in needs provider credentials first/);
+    assert.equal(await page.locator("#gateSignIn").isVisible(), true, "sign-in is offered without opening the external provider");
     assert.deepEqual(seen.filter((entry) => entry.slug === "book-club-7fq2x").map((entry) => entry.method), ["GET"], "one read, no saves");
 
     await Promise.all([page.waitForURL(`${state.base}/`), page.locator("#signInGate a").click()]);

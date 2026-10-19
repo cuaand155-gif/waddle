@@ -2,7 +2,7 @@
 
 The complete picture of what Waddle is supposed to do, where each piece lives, what proves it works, and what's left. Use it as the checklist before calling Waddle "done", and update it whenever a feature is added or changed. The product rules for what each view may show are in [CLAUDE.md](CLAUDE.md) and win over anything here.
 
-Last checked: 2026-10-02, after the development-manager review (best time, plan comments, locked groups): 289 unit/API tests and 69 browser tests, all passing; `rls-server-test.sql` 10/10 on the live project. Database rules re-checked on the live project 2026-10-01 after the phone-number schema: `rls-test.sql` 22/22 and `rls-shares-test.sql` 24/24.
+Last checked: 2026-10-19, after the "Make a plan" release: 289 unit/API tests and 71 browser tests, all passing. `rls-server-test.sql` passed 10/10 on the live project 2026-09-27. Database rules were last checked on the live project 2026-10-01 after the phone-number schema: `rls-test.sql` 22/22 and `rls-shares-test.sql` 24/24.
 
 ## 1. What Waddle is
 
