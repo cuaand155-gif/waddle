@@ -42,10 +42,11 @@ These are ordered by dependency. The operator decisions belong to Alexi; app cha
 - [x] Invite-by-text draft and single-contact picking on supported browsers. Waddle does not send the text automatically.
 - [x] Google sign-in, optional Calendar connection, per-friend visibility controls, booking links, and push opt-in.
 - [x] Auto/light/dark appearance and nine accent colours.
-- [x] Both production URLs updated to the current app. The latest privacy changes passed 295 unit/API tests and 73 browser tests before deployment.
+- [x] Both production URLs updated to the current app. The latest group access changes passed 298 unit/API tests and the affected browser flows.
 - [x] Profile names/photos are no longer readable by unrelated signed-in accounts; the live database policy is limited to account owners and friend-request parties.
 - [x] Google disconnect checks that the server deleted its refresh token before reporting success; short-lived browser access tokens use session storage. Guest, invite and booking screens explain who can see submitted information.
 - [x] A signed-in stranger with a group URL cannot read or overwrite the full group. A valid invite opens only the limited guest view.
+- [x] When the current technical manager leaves through a group save, management passes to another existing signed-in member. The last manager cannot leave a group stranded. An account deletion screen and multi-admin roles are still pending.
 
 ## Keeping this current
 

@@ -1,6 +1,6 @@
 # Waddle group governance (working design)
 
-The product should describe **admins and members**, rather than a person who owns a group. Today's `ownerId` is a technical manager field; the app has no admin roles or self-service account deletion yet. This page records the requested direction without claiming it is already live.
+The product should describe **admins and members**, rather than a person who owns a group. Today's `ownerId` is a technical manager field; the app has no multi-admin roles or self-service account deletion yet. The server now passes that field to an existing signed-in member when its current manager leaves through a group save, and blocks departure without a successor. The broader role model below is proposed.
 
 | Role | Proposed abilities |
 | --- | --- |
