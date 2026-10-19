@@ -10,6 +10,7 @@
 // someone else's groups.
 
 import { bearer, config, restHeaders, send, userFromToken } from "./_supabase.js";
+import { normalizeHangouts } from "../lib/hangout-history.js";
 
 const MAX_GROUPS = 50;
 
@@ -24,7 +25,7 @@ async function handle(request, response) {
   }
 
   const settings = config();
-  if (!settings) return send(response, 200, { groups: [], persisted: false });
+  if (!settings) return send(response, 200, { groups: [], hangouts: [], persisted: false });
   const { url, key } = settings;
 
   const userId = await userFromToken(url, key, bearer(request));
@@ -32,7 +33,7 @@ async function handle(request, response) {
 
   const contains = JSON.stringify({ members: [{ userId }] });
   const query = new URLSearchParams({
-    select: "slug,name:state->>name,updated_at",
+    select: "slug,name:state->>name,updated_at,hangouts:state->hangouts",
     state: `cs.${contains}`,
     order: "updated_at.desc",
     limit: String(MAX_GROUPS),
@@ -47,6 +48,16 @@ async function handle(request, response) {
       name: row.name || row.slug,
       at: row.updated_at,
     })),
+    hangouts: (Array.isArray(rows) ? rows : []).flatMap((row) =>
+      normalizeHangouts(row.hangouts).filter((entry) => entry.attendees.includes(userId)).map((entry) => ({
+        planId: entry.planId,
+        at: entry.at,
+        end: entry.end,
+        with: entry.attendees.filter((id) => id !== userId),
+        group: row.name || row.slug,
+        slug: row.slug,
+      }))
+    ),
     persisted: true,
   });
 }

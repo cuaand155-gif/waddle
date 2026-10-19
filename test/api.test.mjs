@@ -520,6 +520,29 @@ test("only the owner can turn an organization back into a friends group", async 
   assert.equal(owner.body.state.kind, undefined, "back to an ordinary group");
 });
 
+test("the server records completed attendance and keeps another member's RSVP intact", async (t) => {
+  const at = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  const end = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const members = [{ id: "a", name: "Ada", userId: "user-1" }, { id: "b", name: "Bo", userId: "user-2" }];
+  const plan = { id: "plan-1", activity: "Dinner", chosen: at, chosenEnd: end, rsvp: { at, answers: { a: "yes" } } };
+  const row = oneGroup(t, { name: "Team", members, plan });
+  const saved = await call(workspaceHandler, {
+    method: "PUT", query: { slug: "team" }, headers: { authorization: "Bearer other-token" },
+    body: { rev: row.updated_at, state: { ...row.state, plan: { ...plan, rsvp: { at, answers: { a: "no", b: "yes" } } }, hangouts: [{ planId: "fake", at, end, attendees: ["user-1", "user-2"] }] } },
+  });
+  assert.equal(saved.status, 200);
+  assert.deepEqual(saved.body.state.plan.rsvp.answers, { a: "yes", b: "yes" });
+  assert.deepEqual(saved.body.state.hangouts[0].attendees, ["user-1", "user-2"]);
+  assert.equal(saved.body.state.hangouts.some((entry) => entry.planId === "fake"), false, "the browser cannot forge history");
+
+  const replaced = await call(workspaceHandler, {
+    method: "PUT", query: { slug: "team" }, headers: SIGNED_IN,
+    body: { rev: row.updated_at, state: { ...row.state, plan: null, hangouts: [] } },
+  });
+  assert.equal(replaced.status, 200);
+  assert.equal(replaced.body.state.hangouts.length, 1, "history survives replacing the plan");
+});
+
 test("a member's save keeps everyone else's comments as they were, and stamps new ones", async (t) => {
   const row = oneGroup(t, {
     name: "Team",

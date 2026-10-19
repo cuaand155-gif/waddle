@@ -413,6 +413,13 @@
       <p class="dialog-copy">Share the link so friends can add their own times, or add a placeholder for someone you’ll chase later.</p>
       <label class="field-label" for="inviteLink">Invite link</label>
       <div class="copy-row"><input class="text-input" id="inviteLink" readonly /><button class="outline-button" id="copyInviteLink" type="button">Copy</button></div>
+      <label class="field-label" for="invitePhone">Text this invite</label>
+      <div class="copy-row invite-phone-row">
+        <input class="text-input" id="invitePhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Friend's phone number" maxlength="24" />
+        <button class="outline-button" id="pickInviteContact" type="button" hidden>Contacts</button>
+        <a class="outline-button" id="textInvite" href="#">Open text</a>
+      </div>
+      <p class="form-hint">Opens your messages app with a draft; you choose whether to send it. Contacts are only opened if you tap Contacts.</p>
       <div class="invite-controls member-only" id="inviteControls" hidden>
         <p class="form-hint" id="inviteStatus"></p>
         <div class="invite-actions">
@@ -582,6 +589,14 @@
       <p class="form-hint">Private events are hidden from everyone — not even shown as busy — so a group may suggest a time over one. Booking links still keep those times closed. Only a scrambled code of each name is saved, never the name.</p>
       <p class="form-hint" id="shareSyncNote"></p>
       <button class="primary-button full" id="saveSharing" type="button">Save</button>
+    </dialog>
+
+    <dialog id="friendProfileDialog">
+      <div class="dialog-header"><div><p class="eyebrow">FRIEND PROFILE</p><h2 id="friendProfileName">Your friend</h2></div><button class="close-dialog" aria-label="Close"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button></div>
+      <div class="friend-profile-summary"><span class="avatar avatar-lilac" id="friendProfileAvatar" aria-hidden="true"></span><div><strong id="friendHangoutCount">0 times together</strong><small>Counts plans after they end when you both RSVP Yes.</small></div></div>
+      <p class="eyebrow">TIMES TOGETHER</p>
+      <div class="friend-hangout-list" id="friendHangoutList"></div>
+      <div class="friend-profile-actions"><button class="outline-button" type="button" id="friendProfileCalendar">See calendar</button><button class="primary-button" type="button" id="friendProfilePlan">Plan 1-on-1</button></div>
     </dialog>
 
     <dialog id="friendCalendarDialog" class="wide-dialog">

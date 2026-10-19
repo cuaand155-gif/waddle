@@ -1667,6 +1667,24 @@ const nextMonday = (page, hour = 0) =>
   }, hour);
 
 describe("friends without a group", () => {
+  browserTest("a friend's profile counts completed plans together", { db: true, signedIn: true }, async ({ page, go }) => {
+    const at = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+    const end = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const response = await fetch(`${state.dbBase}/__fake-db`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tables: { workspaces: [{ slug: "movie-night-7fq2x", state: { name: "Movie night", members: [{ id: "a", userId: ALEXI }, { id: "b", userId: SAM }], hangouts: [{ planId: "plan-1", at, end, attendees: [ALEXI, SAM] }] }, updated_at: end }] } }),
+    });
+    assert.equal(response.status, 200);
+    await go("/");
+    await page.locator("#friendsButton").click();
+    await page.locator('#friendList [data-view-profile="' + SAM + '"]').click();
+    await page.waitForFunction(() => document.querySelector("#friendHangoutCount")?.textContent === "1 time together");
+    assert.match(await page.locator("#friendHangoutList").innerText(), /Movie night/);
+    await page.locator("#friendProfileCalendar").click();
+    await page.locator("#friendCalendarDialog").waitFor();
+  });
+
   browserTest("the Friends page: a request by phone number, accepted by the person with that number", { signedIn: true }, async ({ page, go, open }) => {
     await go("/");
     await page.locator("#friendsButton").click();
@@ -2153,6 +2171,20 @@ describe("sharing links", () => {
     assert.deepEqual(plan, { title: "Pottery night · vote on a time", text: "Vote on a time for Pottery night.", url: `${state.base}/p/pottery-sh4re` });
     assert.equal(group.url, `${state.base}/g/pottery-sh4re`);
     assert.match(group.title, /on Waddle$/);
+
+    await page.evaluate(() => Object.defineProperty(navigator, "contacts", { configurable: true, value: { select: async () => [{ tel: ["416 555 0123"] }] } }));
+    await page.locator("#managePeople").click();
+    await page.locator("#pickInviteContact").click();
+    assert.equal(await page.locator("#invitePhone").inputValue(), "416 555 0123");
+    const sms = await page.evaluate(() => {
+      const link = document.querySelector("#textInvite");
+      link.addEventListener("click", (event) => event.preventDefault(), { capture: true, once: true });
+      link.click();
+      return link.href;
+    });
+    assert.match(sms, /^sms:\+14165550123\?body=/);
+    assert.match(decodeURIComponent(sms), /Join .* on Waddle: .*\/g\/pottery-sh4re/);
+    await page.locator("#peopleDialog .close-dialog").click();
 
     // Closing the share sheet is not an error and copies nothing.
     await page.evaluate(() => {

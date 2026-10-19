@@ -5,6 +5,8 @@ Checked 2026-10-19 against the app and the linked primary-source guidance. This 
 ## Ready in the app
 
 - The account dialog and group gate already support Google sign-in. The same flow creates an account for a new user. Google Calendar is requested separately from basic sign-in, when the user chooses Connect in Calendar links.
+- People can belong to multiple groups and have multiple friends. A friend's profile shows completed plans together after both friends RSVP Yes; earlier plans that were replaced before this history feature existed are not recoverable.
+- A group invite can be opened as a draft text to a chosen phone number. On browsers with the Contact Picker API, the user can select one phone contact first. The selected number stays in the browser; Waddle does not upload the address book or send the text. Matching a person's whole phone address book to Waddle accounts is not implemented.
 - A guest can join from an invite with just a name. The demo group works without an account.
 - Settings have Auto, Light and Dark appearance plus nine accent colours, saved on the device.
 - There is no advertising or client analytics tag in the app. Aggregate server metrics in `api/_metrics.js` have no user IDs or cookies. The app does use local storage for login sessions, preferences, calendar cache and group state, and a service worker for offline use. Third-party services include Supabase, Google sign-in/Calendar, Vercel and Google Fonts. Push notifications and booking emails are optional features.

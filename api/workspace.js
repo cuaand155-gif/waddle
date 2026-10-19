@@ -50,6 +50,7 @@ import {
 } from "../lib/guests.js";
 import { accountFromToken, bearer, config, send, userFromToken } from "./_supabase.js";
 import { mergeMemberComments } from "../lib/hangout.js";
+import { mergeMemberRsvp, recordHangouts } from "../lib/hangout-history.js";
 import { normalizeEmail } from "../lib/membership.js";
 import { insertRow, loadRow, saveIfUnchanged, updateRow } from "./_store.js";
 import { countMetric } from "./_metrics.js";
@@ -321,7 +322,7 @@ async function handle(request, response) {
 
   if (!current.row) {
     // The invite link is the server's to make, never the browser's.
-    const fresh = normalizeWorkspaceState({ ...incoming, invite: slug === DEMO_SLUG ? null : freshInvite(), guests: null });
+    const fresh = normalizeWorkspaceState({ ...incoming, hangouts: [], invite: slug === DEMO_SLUG ? null : freshInvite(), guests: null });
     const created = await insertRow(url, key, slug, fresh);
     if (created.error) return send(response, 502, { error: "Unable to create workspace", detail: created.error });
     return send(response, 201, { slug, state: memberView(normalizeWorkspaceState(created.row?.state || fresh)), rev: created.row?.updated_at || null, persisted: true });
@@ -371,11 +372,13 @@ async function handle(request, response) {
     Object.assign(incoming.plan, planAuthorship(stored, incoming, authenticatedUser));
     const caller = authenticatedUser ? stored.members.find((member) => member.userId === authenticatedUser) || incoming.members.find((member) => member.userId === authenticatedUser) : null;
     incoming.plan.comments = mergeMemberComments(stored.plan, incoming.plan, caller?.id || null);
+    incoming.plan.rsvp = mergeMemberRsvp(stored.plan, incoming.plan, caller?.id || null);
   }
 
   // The invite link and the guests' token hashes are the server's: a member's
   // save can never change or drop them (normalizing prunes removed guests).
-  const next = normalizeWorkspaceState({ ...incoming, invite: stored.invite || null, guests: stored.guests || null });
+  const hangouts = recordHangouts(stored.hangouts, stored.plan, incoming.plan, stored.members);
+  const next = normalizeWorkspaceState({ ...incoming, hangouts, invite: stored.invite || null, guests: stored.guests || null });
 
   const saved = await saveIfUnchanged(url, key, slug, rev ? rev : null, next);
   if (saved.error) return send(response, 502, { error: "Unable to save workspace", detail: saved.error });

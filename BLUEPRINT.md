@@ -2,7 +2,7 @@
 
 The complete picture of what Waddle is supposed to do, where each piece lives, what proves it works, and what's left. Use it as the checklist before calling Waddle "done", and update it whenever a feature is added or changed. The product rules for what each view may show are in [CLAUDE.md](CLAUDE.md) and win over anything here.
 
-Last checked: 2026-10-19, after the "Make a plan" release: 289 unit/API tests and 71 browser tests, all passing. A later sign-in copy and colour update passed 289 unit/API tests and its 3 focused browser tests. See [LAUNCH_READINESS.md](LAUNCH_READINESS.md) for the public launch checklist. `rls-server-test.sql` passed 10/10 on the live project 2026-09-27. Database rules were last checked on the live project 2026-10-01 after the phone-number schema: `rls-test.sql` 22/22 and `rls-shares-test.sql` 24/24.
+Last checked: 2026-10-19. The friend profile and text-invite update passed 293 unit/API tests and 72 browser tests; focused browser checks passed again after the contact-picker test. See [LAUNCH_READINESS.md](LAUNCH_READINESS.md) for the public launch checklist. `rls-server-test.sql` passed 10/10 on the live project 2026-09-27. Database rules were last checked on the live project 2026-10-01 after the phone-number schema: `rls-test.sql` 22/22 and `rls-shares-test.sql` 24/24.
 
 ## 1. What Waddle is
 
@@ -53,6 +53,8 @@ Status key: ✅ proven by an automated browser test · 🧪 proven by unit/API t
 | Friend requests (send, accept) | Friends page (sidebar), `lib/friends.js` | e2e "send a friend request, they accept it…" (two browsers); `friends` tests | ✅ |
 | Friends page: friends without a group | `#friendsDialog`, sidebar Friends | e2e "the Friends page: a request by phone number…" | ✅ |
 | Friend requests by phone number | `lib/friends.js`, `lib/phone.js`, `recipient_phone` | e2e "…by phone number, accepted by the person with that number" (two browsers); `friends`, `phone` tests; `supabase/rls-test.sql` phone checks (22/22 on the live project, 2026-10-01) | ✅ |
+| Friend profile with dates and count of completed plans where both friends RSVP Yes | `lib/hangout-history.js`, `api/groups.js`, Friends → Profile | `hangout-history`, `groups-api` tests; e2e "a friend's profile counts completed plans together" | ✅ (records start when this feature ships; older replaced plans cannot be recovered) |
+| Text a group invite from the phone's messages app; choose a contact where the browser supports it | People → Text this invite | e2e "share a group or a plan…" checks the SMS draft link | ✅ (contact picker availability depends on browser; no automatic send) |
 | 1-on-1 with a friend: "You're both free", plan it, same space for both | Friends → Calendar / 1-on-1, `pairSlug`, `freeTogether` | e2e "a 1-on-1 with a friend…" (both friends reach the same link); `groups-sync`, `planner` tests | ✅ |
 | Organization or business groups (free/busy only, always) | Your groups → Start a new group, Settings → Group type, `normalizeWorkspaceState` | e2e "an organization group is free/busy only…"; `planner` test (names stripped on save) | ✅ |
 | Getting-started checklist for new groups | `lib/checklist.js` | e2e "getting-started checklist…"; `checklist` tests | ✅ |

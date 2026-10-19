@@ -44,7 +44,7 @@ test("without a database the list is empty, not an error", async () => {
   delete process.env.NEXT_PUBLIC_SUPABASE_URL;
   const result = await call({});
   assert.equal(result.status, 200);
-  assert.deepEqual(result.body, { groups: [], persisted: false });
+  assert.deepEqual(result.body, { groups: [], hangouts: [], persisted: false });
 });
 
 test("only GET is allowed", async () => {
@@ -67,7 +67,10 @@ test("the caller's groups come from their verified account id, not the request",
     if (String(url).includes("/auth/v1/user")) return new Response(JSON.stringify({ id: "user-123" }), { status: 200 });
     return new Response(
       JSON.stringify([
-        { slug: "crew-7fq2x", name: "Weekend crew", updated_at: "2026-09-23T10:00:00+00:00" },
+        { slug: "crew-7fq2x", name: "Weekend crew", updated_at: "2026-09-23T10:00:00+00:00", hangouts: [
+          { planId: "plan_a", at: "2026-09-20T10:00:00Z", end: "2026-09-20T12:00:00Z", attendees: ["user-123", "friend-456"] },
+          { planId: "plan_b", at: "2026-09-21T10:00:00Z", end: "2026-09-21T12:00:00Z", attendees: ["other-1", "other-2"] },
+        ] },
         { slug: "book-club-a8k3m", name: null, updated_at: "2026-09-20T10:00:00+00:00" },
       ]),
       { status: 200 }
@@ -80,6 +83,7 @@ test("the caller's groups come from their verified account id, not the request",
     { slug: "crew-7fq2x", name: "Weekend crew", at: "2026-09-23T10:00:00+00:00" },
     { slug: "book-club-a8k3m", name: "book-club-a8k3m", at: "2026-09-20T10:00:00+00:00" },
   ]);
+  assert.deepEqual(result.body.hangouts, [{ planId: "plan_a", at: "2026-09-20T10:00:00.000Z", end: "2026-09-20T12:00:00.000Z", with: ["friend-456"], group: "Weekend crew", slug: "crew-7fq2x" }]);
 
   const query = new URL(asked.find((url) => url.includes("/rest/v1/workspaces"))).searchParams;
   assert.equal(query.get("state"), 'cs.{"members":[{"userId":"user-123"}]}', "filtered by the verified id");

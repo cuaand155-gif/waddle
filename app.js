@@ -38,6 +38,7 @@ import { applyMembership, findMemberForParty, linkMemberToParty, normalizeEmail,
 import { createFriendStore, describeParty, partitionRequests, profileIdsFor, recipientFor, rejectionFor } from "./lib/friends.js";
 import { BLOCK_PRESETS, DAY_NAMES, addRule, blockedBlocksOn, blockedEvents, describeRule, removeRule, rulesForGroup } from "./lib/blocked.js";
 import { formatPhone, normalizePhone } from "./lib/phone.js";
+import { completedTogether, recordHangouts } from "./lib/hangout-history.js";
 import { buildPlanIcs, googleCalendarUrl, planUid } from "./lib/calendar-export.js";
 import { forgetGroup, isPairSlug, mergeGroups, newGroupSlug, pairSlug, rememberGroup, renameGroup } from "./lib/groups.js";
 import { dueForSync, sameBusy } from "./lib/sync.js";
@@ -561,6 +562,7 @@ function nextStateFrom(base, apply, note) {
   const draft = structuredClone(base);
   apply(draft, base);
   if (note) draft.activity = [{ message: note, at: new Date().toISOString() }, ...(draft.activity || [])];
+  draft.hangouts = recordHangouts(base.hangouts, base.plan, draft.plan, base.members);
   const next = normalizeWorkspaceState(draft);
   return stateTooLarge(next) ? null : next;
 }
@@ -2041,7 +2043,7 @@ document.addEventListener("visibilitychange", () => {
 
 /* Groups */
 
-const groupsState = { remote: [] };
+const groupsState = { remote: [], hangouts: [] };
 
 function localGroups() {
   return readJson(STORAGE.groups, []);
@@ -2063,6 +2065,7 @@ async function loadRemoteGroups() {
   const token = await accessToken();
   if (!token) {
     groupsState.remote = [];
+    groupsState.hangouts = [];
     return;
   }
   try {
@@ -2070,6 +2073,7 @@ async function loadRemoteGroups() {
     if (!response.ok) return;
     const payload = await response.json();
     groupsState.remote = Array.isArray(payload.groups) ? payload.groups : [];
+    groupsState.hangouts = Array.isArray(payload.hangouts) ? payload.hangouts : [];
   } catch {
     /* Offline: the local list still works. */
   }
@@ -2184,6 +2188,7 @@ const dialogs = {
   groups: $("groupsDialog"),
   sharing: $("sharingDialog"),
   friendCalendar: $("friendCalendarDialog"),
+  friendProfile: $("friendProfileDialog"),
   friends: $("friendsDialog"),
   blocked: $("blockedDialog"),
 };
@@ -3187,6 +3192,8 @@ async function pickPlanTime(chosen, windowEnd) {
 
 function renderSavedPeople() {
   $("inviteLink").value = inviteUrl();
+  $("pickInviteContact").hidden = typeof navigator.contacts?.select !== "function";
+  $("textInvite").setAttribute("aria-disabled", String(Boolean(session.state.invite?.revoked || session.state.settings.locked)));
   $("groupName").value = session.state.name;
   $("savedPeople").innerHTML = session.state.members
     .map(
@@ -3199,6 +3206,34 @@ function renderSavedPeople() {
   renderClaimPrompt();
   renderFriends();
 }
+
+$("pickInviteContact").addEventListener("click", async () => {
+  try {
+    const [contact] = await navigator.contacts.select(["tel"], { multiple: false });
+    const phone = contact?.tel?.find((value) => normalizePhone(value));
+    if (phone) $("invitePhone").value = phone;
+    else if (contact) showToast("That contact has no usable phone number.");
+  } catch (error) {
+    if (error?.name !== "AbortError") showToast("Could not open contacts. Enter a number instead.");
+  }
+});
+
+$("textInvite").addEventListener("click", (event) => {
+  if (session.state.invite?.revoked || session.state.settings.locked) {
+    event.preventDefault();
+    showToast("This group's invite link is off or limited to signed-in members.");
+    return;
+  }
+  const phone = normalizePhone($("invitePhone").value);
+  if (!phone) {
+    event.preventDefault();
+    $("invitePhone").focus();
+    showToast("Enter a phone number to text the invite.");
+    return;
+  }
+  const message = `Join ${session.state.name} on Waddle: ${inviteUrl()}`;
+  event.currentTarget.href = `sms:${phone}?body=${encodeURIComponent(message)}`;
+});
 
 /** Turn the invite link off, or make a new one (owners; the server checks). */
 function renderInviteControls() {
@@ -3343,7 +3378,8 @@ function renderFriends(errorMessage) {
                 ? `<button type="button" class="quiet" data-add-friend="${escapeAttribute(row.id)}">Link to them</button>`
                 : `<button type="button" class="quiet" data-add-friend="${escapeAttribute(row.id)}">Add to this group</button>`;
           const calendar = party.id
-            ? `<button type="button" data-view-calendar="${escapeAttribute(party.id)}" data-friend-name="${escapeAttribute(party.name)}">Calendar</button>` +
+            ? `<button type="button" data-view-profile="${escapeAttribute(party.id)}">Profile</button>` +
+              `<button type="button" data-view-calendar="${escapeAttribute(party.id)}" data-friend-name="${escapeAttribute(party.name)}">Calendar</button>` +
               `<button type="button" class="accept" data-one-on-one="${escapeAttribute(party.id)}">1-on-1</button>`
             : "";
           return friendRowMarkup(row, calendar + action, { withStatus: true });
@@ -3373,6 +3409,40 @@ function openFriends() {
 }
 
 $("friendsButton").addEventListener("click", openFriends);
+
+let profileFriend = null;
+
+async function openFriendProfile(friendId) {
+  const match = acceptedFriends().find(({ party }) => party.id === friendId);
+  if (!match || !ui.user) return;
+  profileFriend = match.party;
+  $("friendProfileName").textContent = match.party.name;
+  $("friendProfileAvatar").textContent = initialsFor(match.party.name);
+  $("friendHangoutCount").textContent = "Loading your plans…";
+  $("friendHangoutList").innerHTML = "";
+  openDialog(dialogs.friendProfile);
+  await loadRemoteGroups();
+  if (profileFriend?.id !== friendId || !dialogs.friendProfile.open) return;
+  const remote = groupsState.hangouts.filter((entry) => entry.with?.includes(friendId) && Date.parse(entry.end) <= Date.now());
+  const local = completedTogether(session.state.hangouts, ui.user.id, friendId).map((entry) => ({ ...entry, group: session.state.name, slug: session.slug }));
+  const byEvent = new Map();
+  for (const entry of [...remote, ...local]) byEvent.set(`${entry.slug}:${entry.planId}:${entry.at}`, entry);
+  const hangouts = [...byEvent.values()].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+  $("friendHangoutCount").textContent = `${hangouts.length} ${hangouts.length === 1 ? "time" : "times"} together`;
+  $("friendHangoutList").innerHTML = hangouts.length
+    ? hangouts.map((entry) => `<div class="friend-hangout-row"><strong>${escapeHtml(new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(entry.at)))}</strong><small>${escapeHtml(entry.group)}</small></div>`).join("")
+    : '<p class="form-hint">No completed plans together yet. A date appears here after you both RSVP Yes and the plan ends.</p>';
+}
+
+$("friendProfileCalendar").addEventListener("click", () => {
+  if (!profileFriend) return;
+  dialogs.friendProfile.close();
+  openFriendCalendar(profileFriend.id, profileFriend.name);
+});
+
+$("friendProfilePlan").addEventListener("click", () => {
+  if (profileFriend) startOneOnOne(profileFriend.id);
+});
 
 $("friendRequestForm").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -3416,6 +3486,14 @@ $("friendsPanel").addEventListener("click", (event) => {
   if (!view || !shareStore || !ui.user) return;
   dialogs.friends.close();
   openFriendCalendar(view.dataset.viewCalendar, view.dataset.friendName || "Your friend");
+});
+
+$("friendsPanel").addEventListener("click", (event) => {
+  const profileButton = event.target.closest("[data-view-profile]");
+  if (profileButton) {
+    dialogs.friends.close();
+    openFriendProfile(profileButton.dataset.viewProfile);
+  }
 });
 
 $("friendsPanel").addEventListener("click", (event) => {
@@ -4863,7 +4941,7 @@ async function startOneOnOne(friendId, when = null) {
     window: when ? { start: when.start.toISOString(), end: when.end.toISOString() } : null,
   };
   if (slug === session.slug) {
-    for (const dialog of [dialogs.friends, dialogs.friendCalendar]) if (dialog.open) dialog.close();
+    for (const dialog of [dialogs.friends, dialogs.friendCalendar, dialogs.friendProfile]) if (dialog.open) dialog.close();
     await setUpPair(setup);
     if (!when) showToast(`This is your 1-on-1 with ${party.name.split(" ")[0]}.`);
     return;
