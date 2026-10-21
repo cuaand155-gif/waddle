@@ -1,6 +1,6 @@
 # Waddle data inventory (working document)
 
-Checked against the app and schema on 2026-10-21. This records current behavior for the operator's policy and deletion decisions; it is not a public privacy policy. Verify the daily cleanup schedule in production before treating the 90-day limits as live behavior.
+Checked against the app and schema on 2026-10-21. This records current behavior for the operator's policy and deletion decisions; it is not a public privacy policy. The daily cleanup schedule is active in production, and a manual run returned HTTP 200 on 2026-10-21.
 
 | Data | Where and why | Who can access it now | Current removal behavior | Decision still needed |
 | --- | --- | --- | --- | --- |
