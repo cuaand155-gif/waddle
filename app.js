@@ -354,7 +354,7 @@ function renderSignInGate() {
       : gate === "revoked" ? "Ask whoever sent it for a new link. Already in the group? Sign in."
         : gate === "locked" ? "The group's owner only lets signed-in people in. Sign in with Google to join."
           : "Groups share when people are free, so only signed-in people can open them. It's free and takes one tap with Google.";
-  $("gateNote").textContent = session.gateNote || (joining ? "Your name, times, votes and comments are visible to group members and anyone with this invite link. Guests cannot see calendar event details." : "");
+  $("gateNote").textContent = session.gateNote || (joining ? "Your name, times, votes and comments are visible to group members and anyone with this invite link. Guests cannot see calendar event details. Your guest data expires 90 days after you last join or make a change." : "");
   if (joining && !$("guestName").value) $("guestName").value = profile.name || "";
 }
 
@@ -387,6 +387,8 @@ async function loadWorkspace() {
     });
     if (response.status === 401 || response.status === 403) {
       // Nothing about the group comes back, and nothing is saved until sign-in.
+      window.localStorage.removeItem(STORAGE.cache(session.slug));
+      session.state = normalizeWorkspaceState({});
       const answer = await response.json().catch(() => ({}));
       ui.workspaceLoaded = true;
       closeGate(answer.inviteRevoked ? "revoked" : answer.locked ? "locked" : "signin");
@@ -405,7 +407,7 @@ async function loadWorkspace() {
     }
     session.needsSignIn = false;
     session.gate = "signin";
-    session.guest = payload.guest ? { memberId: payload.guest.memberId } : null;
+    session.guest = payload.guest ? { memberId: payload.guest.memberId, managerless: payload.managerless === true } : null;
     renderSignInGate();
     session.rev = payload.rev || null;
     session.persisted = payload.persisted === true;
@@ -474,7 +476,7 @@ async function joinAsGuest(name) {
   session.needsSignIn = false;
   session.gate = "signin";
   session.gateNote = "";
-  session.guest = { memberId: payload.guest.memberId };
+  session.guest = { memberId: payload.guest.memberId, managerless: payload.managerless === true };
   session.state = normalizeWorkspaceState(payload.state);
   session.rev = payload.rev || null;
   session.persisted = true;
@@ -775,6 +777,7 @@ function renderChrome() {
   document.body.classList.toggle("guest-mode", guest);
   $("guestBanner").hidden = !guest;
   if (guest) $("guestBannerName").textContent = me()?.name || displayName();
+  $("claimManagerButton").hidden = !(guest && session.guest.managerless && ui.user);
   $("workspaceName").textContent = session.state.name;
   document.title = `${session.state.name} — Waddle`;
   // A rename (here or by someone else) shows in Your groups straight away.
@@ -2945,6 +2948,34 @@ $("guestJoinForm").addEventListener("submit", async (event) => {
   button.disabled = false;
 });
 
+$("claimManagerButton").addEventListener("click", async () => {
+  const pass = guestPass();
+  const token = await accessToken();
+  if (!token || !pass?.token) return;
+  const button = $("claimManagerButton");
+  button.disabled = true;
+  try {
+    const response = await fetch(`/api/workspace?slug=${encodeURIComponent(session.slug)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ action: "manager-claim", invite: pass.invite, token: pass.token }),
+    });
+    const answer = await response.json().catch(() => ({}));
+    if (!response.ok || !answer.state) throw new Error(answer.error || "Could not manage this group.");
+    session.state = normalizeWorkspaceState(answer.state);
+    session.rev = answer.rev;
+    session.guest = null;
+    saveGuestPass(null);
+    writeJson(STORAGE.cache(session.slug), session.state);
+    render();
+    showToast("You can manage this group now.");
+  } catch (error) {
+    showToast(error?.message || "Could not manage this group.");
+  } finally {
+    button.disabled = false;
+  }
+});
+
 $("signOutButton").addEventListener("click", async () => {
   if (!supabaseClient) return;
   await supabaseClient.auth.signOut();
@@ -2952,6 +2983,35 @@ $("signOutButton").addEventListener("click", async () => {
   window.localStorage.removeItem(STORAGE.googleHealth);
   renderGoogleState();
   showToast("Signed out on this device.");
+});
+
+$("deleteAccountButton").addEventListener("click", async () => {
+  if (!supabaseClient || !ui.user) return;
+  if (window.prompt("Delete your Waddle account and linked live records? Shared plans and other people's content may remain. Type DELETE to continue.") !== "DELETE") return;
+  const button = $("deleteAccountButton");
+  button.disabled = true;
+  try {
+    const token = await accessToken();
+    if (!token) throw new Error("Sign in again before deleting your account.");
+    const response = await fetch("/api/account", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+    const answer = await response.json().catch(() => ({}));
+    if (!response.ok || answer.deleted !== true) throw new Error(answer.error || "Account deletion did not finish. Try again.");
+    await supabaseClient.auth.signOut({ scope: "local" }).catch(() => {});
+    clearGoogleToken();
+    // Cached group, calendar and guest data belong to the old account. Also
+    // clear this project's local Supabase session if signOut could not do so.
+    const projectRef = new URL(AUTH_CONFIG.supabaseUrl).hostname.split(".")[0];
+    for (const storage of [window.localStorage, window.sessionStorage]) {
+      for (let index = storage.length - 1; index >= 0; index -= 1) {
+        const key = storage.key(index);
+        if (key?.startsWith("gatherly-") || key === `sb-${projectRef}-auth-token`) storage.removeItem(key);
+      }
+    }
+    window.location.assign("/");
+  } catch (error) {
+    showToast(error?.message || "Account deletion did not finish. Try again.");
+    button.disabled = false;
+  }
 });
 
 function renderAccount(user) {
@@ -2967,6 +3027,7 @@ function renderAccount(user) {
   $("signupHint").hidden = signedIn;
   $("phoneSignInForm").hidden = signedIn;
   $("signOutButton").hidden = !signedIn;
+  $("deleteAccountArea").hidden = !signedIn;
   $("accountCopy").textContent = signedIn
     ? "Your availability follows this account between devices."
     : "Sign in or create a free account to keep your groups and availability wherever you plan.";

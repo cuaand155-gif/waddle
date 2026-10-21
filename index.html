@@ -100,6 +100,7 @@
 
           <section class="guest-banner" id="guestBanner" hidden aria-label="You're a guest">
             <div><strong>You're in as <span id="guestBannerName">a guest</span>.</strong><small>Mark when you're busy, vote on a time and RSVP. As a guest, you see busy/free times, not calendar event details.</small></div>
+            <button type="button" class="outline-button" id="claimManagerButton" hidden>Manage this group</button>
             <button class="outline-button" type="button" id="guestSignIn">Sign in to save and connect your calendar</button>
           </section>
 
@@ -361,6 +362,10 @@
         <p class="form-hint" id="phoneHint">No password: we text you a one-time code. Outside North America, start with + and your country code.</p>
       </form>
       <button class="outline-button full" id="signOutButton" hidden>Sign out</button>
+      <div id="deleteAccountArea" hidden>
+        <p class="form-hint">Delete your account and linked data from Waddle's live records, including your group profile, availability, votes, comments, booking page and its bookings. Groups, shared plans, other people's messages and copies outside Waddle may remain.</p>
+        <button class="outline-button full danger" id="deleteAccountButton" type="button">Delete my account</button>
+      </div>
       <p class="auth-note" id="authNote">Signing in links this planner to your Google account so your name and availability follow you between devices.</p>
     </dialog>
 

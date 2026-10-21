@@ -636,6 +636,7 @@ as $$
 $$;
 revoke execute on function public.call_waddle_cron(text) from public, anon, authenticated;
 
-select cron.unschedule(jobid) from cron.job where jobname in ('waddle-reminders', 'waddle-weekly');
+select cron.unschedule(jobid) from cron.job where jobname in ('waddle-reminders', 'waddle-weekly', 'waddle-retention');
 select cron.schedule('waddle-reminders', '*/15 * * * *', $$ select public.call_waddle_cron('reminders') $$);
 select cron.schedule('waddle-weekly', '0 21 * * 4', $$ select public.call_waddle_cron('weekly') $$);
+select cron.schedule('waddle-retention', '0 3 * * *', $$ select public.call_waddle_cron('retention') $$);

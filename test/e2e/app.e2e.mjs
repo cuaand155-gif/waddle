@@ -1628,6 +1628,33 @@ describe("sign-in gate", () => {
   });
 });
 
+describe("account deletion", () => {
+  browserTest("deletes the signed-in account while keeping a friend's group", { signedIn: true, db: true, allowErrors: /status of 401 \(Unauthorized\)/ }, async ({ page, go }) => {
+    const slug = "account-delete-test";
+    const tables = { workspaces: [{
+      slug, updated_at: new Date().toISOString(),
+      state: { name: "Friends", ownerId: ALEXI, members: [
+        { id: "alexi", name: "Alexi", userId: ALEXI },
+        { id: "sam", name: "Sam", userId: SAM },
+      ] },
+    }] };
+    const seeded = await fetch(`${state.dbBase}/__fake-db`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tables }) });
+    assert.ok(seeded.ok);
+    await go(`/?w=${slug}`);
+    assert.equal(await page.locator("#accountStatus").innerText(), "Signed in");
+    await page.locator("#accountButton").click();
+    await page.locator("#openAccountFromProfile").click();
+    await page.locator("#deleteAccountButton").waitFor({ state: "visible" });
+    page.once("dialog", (dialog) => dialog.accept("DELETE"));
+    await page.locator("#deleteAccountButton").click();
+    await page.waitForURL(`${state.dbBase}/`, { timeout: 10000 });
+    const stored = await (await fetch(`${state.dbBase}/__fake-db`)).json();
+    assert.equal(stored.workspaces[0].state.ownerId, SAM);
+    assert.equal(stored.workspaces[0].state.members.some((member) => member.userId === ALEXI), false);
+    assert.equal(await page.evaluate((key) => localStorage.getItem(key), `gatherly-workspace:${slug}`), null);
+  });
+});
+
 describe("home screen app", () => {
   browserTest("the service worker caches the shell, and the page opens with no connection", { serviceWorkers: true, allowErrors: /ERR_INTERNET_DISCONNECTED/ }, async ({ page, context, go }) => {
     await go("/");

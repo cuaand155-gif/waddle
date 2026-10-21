@@ -250,6 +250,8 @@ export function createFakeSupabase({ tables = {}, users = FAKE_USERS, rpc = {} }
     reset(next = {}) {
       for (const key of Object.keys(db)) delete db[key];
       Object.assign(db, { workspaces: [] }, structuredClone(next));
+      for (const key of Object.keys(accounts)) delete accounts[key];
+      Object.assign(accounts, structuredClone(users));
       calls.length = 0;
     },
   };

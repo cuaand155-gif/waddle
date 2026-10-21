@@ -52,14 +52,14 @@ export async function userFromToken(url, key, token) {
   }
 }
 
-/** Resolves a Supabase access token to { id, email }, or null when invalid. */
+/** Resolves a Supabase access token to { id, email, phone }, or null when invalid. */
 export async function accountFromToken(url, key, token) {
   if (!token) return null;
   try {
     const result = await fetch(`${url}/auth/v1/user`, { headers: { apikey: key, Authorization: `Bearer ${token}` } });
     if (!result.ok) return null;
     const user = await result.json();
-    return user?.id ? { id: user.id, email: String(user.email || "").toLowerCase() } : null;
+    return user?.id ? { id: user.id, email: String(user.email || "").toLowerCase(), phone: String(user.phone || "") } : null;
   } catch {
     return null;
   }

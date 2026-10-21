@@ -54,6 +54,7 @@ const ROUTES = {
   "/api/workspace": () => import("../api/workspace.js"),
   "/api/calendar": () => import("../api/calendar.js"),
   "/api/groups": () => import("../api/groups.js"),
+  "/api/account": () => import("../api/account.js"),
   "/api/book": () => import("../api/book.js"),
   "/api/google": () => import("../api/google.js"),
   "/api/page": () => import("../api/page.js"),

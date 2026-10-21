@@ -15,6 +15,8 @@ import { nextOccurrence } from "../lib/hangout.js";
 import { config, restHeaders, send } from "./_supabase.js";
 import { claimOnce, notifyUsers, pushConfig, sendPush, subscriptionsFor, whenText } from "./_push.js";
 import { sameSecret } from "../lib/guests.js";
+import { BOOKING_RETENTION_DAYS, expireGuestData } from "../lib/data-lifecycle.js";
+import { updateRow } from "./_store.js";
 
 const REMINDER_MINUTES = 60;
 
@@ -80,6 +82,48 @@ async function weekly(settings, now) {
   return { people: byUser.size, sent };
 }
 
+/** Daily cleanup of old booking visitor records and inactive guest passes. */
+async function retention(settings, now) {
+  const cutoff = new Date(now.getTime() - BOOKING_RETENTION_DAYS * 86400000).toISOString();
+  const bookingQueries = [
+    { end_at: `lt.${cutoff}` },
+    { status: "eq.cancelled", cancelled_at: `lt.${cutoff}` },
+  ];
+  for (const filters of bookingQueries) {
+    const result = await fetch(`${settings.url}/rest/v1/bookings?${new URLSearchParams(filters)}`, {
+      method: "DELETE", headers: restHeaders(settings.key),
+    });
+    if (!result.ok) throw new Error("booking retention failed");
+  }
+  const oldLogs = await fetch(`${settings.url}/rest/v1/notification_log?${new URLSearchParams({ created_at: `lt.${cutoff}` })}`, {
+    method: "DELETE", headers: restHeaders(settings.key),
+  });
+  if (!oldLogs.ok) throw new Error("notification log retention failed");
+  let after = "";
+  let checked = 0;
+  let expired = 0;
+  for (;;) {
+    const query = new URLSearchParams({ select: "slug", "state->guests": "not.is.null", order: "slug.asc", limit: "100" });
+    if (after) query.set("slug", `gt.${after}`);
+    const response = await fetch(`${settings.url}/rest/v1/workspaces?${query}`, { headers: restHeaders(settings.key) });
+    if (!response.ok) throw new Error("guest retention list failed");
+    const rows = await response.json();
+    if (!Array.isArray(rows)) throw new Error("guest retention list failed");
+    for (const row of rows) {
+      const outcome = await updateRow(settings.url, settings.key, row.slug, (state) => {
+        const cleaned = expireGuestData(state, now);
+        return { state: cleaned.expired ? cleaned.state : null, reply: () => ({ expired: cleaned.expired }) };
+      });
+      if (![200, 404].includes(outcome.status)) throw new Error("guest retention update failed");
+      expired += outcome.body?.expired || 0;
+    }
+    checked += rows.length;
+    if (rows.length < 100) break;
+    after = rows.at(-1).slug;
+  }
+  return { checked, guestsExpired: expired, bookingCleanup: true };
+}
+
 export default async function handler(request, response) {
   try {
     const secret = process.env.CRON_SECRET || "";
@@ -91,6 +135,7 @@ export default async function handler(request, response) {
     const now = new Date();
     if (job === "reminders") return send(response, 200, { job, push: Boolean(pushConfig()), ...(await reminders(settings, now)) });
     if (job === "weekly") return send(response, 200, { job, push: Boolean(pushConfig()), ...(await weekly(settings, now)) });
+    if (job === "retention") return send(response, 200, { job, ...(await retention(settings, now)) });
     return send(response, 400, { error: "Unknown job." });
   } catch (error) {
     console.error("cron failed:", error);

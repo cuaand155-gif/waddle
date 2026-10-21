@@ -107,6 +107,11 @@ function canManage(state, userId) {
   return state.members.some((member) => member.userId === userId);
 }
 
+function canClaimManager(state, memberId) {
+  return Boolean(memberId && !state.ownerId && !state.members.some((member) => member.userId) &&
+    state.orphanedAt && Date.parse(state.guests?.[memberId]?.joinedAt) < Date.parse(state.orphanedAt));
+}
+
 /**
  * Who may open a locked group (a 1-on-1 is always locked): its owner, its
  * signed-in members, and someone a pending invite is addressed to by email.
@@ -146,7 +151,7 @@ async function guestRead(response, { url, key, slug, invite, token }) {
     await countMetric("invites_opened");
     return send(response, 200, { slug, join: { name: stored.name, people: stored.members.length, full: stored.members.length >= LIMITS.members }, persisted: true });
   }
-  return send(response, 200, { slug, guest: { memberId }, state: guestView(stored), rev: row.updated_at, persisted: true });
+  return send(response, 200, { slug, guest: { memberId }, managerless: canClaimManager(stored, memberId), state: guestView(stored), rev: row.updated_at, persisted: true });
 }
 
 async function guestAction(response, body, { url, key, slug }) {
@@ -160,7 +165,7 @@ async function guestAction(response, body, { url, key, slug }) {
     if (!inviteIsLive(stored, invite)) return { status: 403, body: { error: "This invite link doesn't work any more.", inviteRevoked: true, signIn: true } };
     if (stored.settings.locked) return { status: 403, body: { error: "This group only lets signed-in members in.", locked: true, signIn: true } };
     const existing = await guestForToken(stored, token);
-    const reply = (state, rev) => ({ slug, guest: { memberId: joinedId || existing }, state: guestView(state), rev, persisted: true });
+    const reply = (state, rev) => ({ slug, guest: { memberId: joinedId || existing }, managerless: canClaimManager(state, joinedId || existing), state: guestView(state), rev, persisted: true });
 
     if (action === "guest-join") {
       if (existing) return { state: null, reply };
@@ -182,7 +187,7 @@ async function guestAction(response, body, { url, key, slug }) {
     const applied = applyGuestUpdate(stored, existing, body, new Date());
     if (!applied) return { status: 403, body: { error: "You're not in this group any more.", guestUnknown: true } };
     guestVotes = applied.votes;
-    const next = normalizeWorkspaceState({ ...applied.state, guests: { ...applied.state.guests, [existing]: { ...stored.guests[existing], ...counter } } });
+    const next = normalizeWorkspaceState({ ...applied.state, guests: { ...applied.state.guests, [existing]: { ...stored.guests[existing], ...counter, lastActiveAt: new Date().toISOString() } } });
     return { state: next, reply };
   });
   if (outcome.status === 200 && guestVotes) await countMetric("guest_votes", guestVotes);
@@ -210,6 +215,34 @@ async function ownerAction(request, response, body, { url, key, slug }) {
   return send(response, outcome.status, outcome.body);
 }
 
+async function claimManager(request, response, body, { url, key, slug }) {
+  const account = await accountFromToken(url, key, bearer(request));
+  if (!account) return send(response, 401, { error: "Sign in to manage this group." });
+  const outcome = await updateRow(url, key, slug, async (stored) => {
+    if (stored.ownerId || stored.members.some((member) => member.userId)) {
+      return { status: 409, body: { error: "This group already has a manager." } };
+    }
+    if (stored.settings.locked || !inviteIsLive(stored, body.invite)) {
+      return { status: 403, body: { error: "This invite cannot manage the group." } };
+    }
+    const memberId = await guestForToken(stored, body.token);
+    if (!memberId) return { status: 403, body: { error: "Join this group as a guest first." } };
+    if (!canClaimManager(stored, memberId)) {
+      return { status: 403, body: { error: "Only a guest who joined before the group lost its manager can claim it." } };
+    }
+    const draft = structuredClone(stored);
+    const member = draft.members.find((person) => person.id === memberId);
+    member.userId = account.id;
+    if (account.email) member.email = account.email;
+    member.updatedAt = new Date().toISOString();
+    delete draft.guests[memberId];
+    draft.ownerId = account.id;
+    delete draft.orphanedAt;
+    return { state: normalizeWorkspaceState(draft), reply: (state, rev) => ({ slug, state: memberView(state), rev, persisted: true }) };
+  });
+  return send(response, outcome.status, outcome.body);
+}
+
 async function handleAction(request, response, settings, slug) {
   let body;
   try {
@@ -221,6 +254,7 @@ async function handleAction(request, response, settings, slug) {
   if (slug === DEMO_SLUG) return send(response, 400, { error: "The demo group has no invite link." });
   const context = { ...settings, slug };
   if (body.action === "guest-join" || body.action === "guest-update") return guestAction(response, body, context);
+  if (body.action === "manager-claim") return claimManager(request, response, body, context);
   if (["invite-revoke", "invite-renew", "guest-remove"].includes(body.action)) return ownerAction(request, response, body, context);
   return send(response, 400, { error: "Unknown action." });
 }
@@ -343,6 +377,9 @@ async function handle(request, response) {
     const userId = authenticatedUser;
     const allowed = userId && (await mayOpenLocked(stored, await accountFromToken(url, key, bearer(request))));
     if (!allowed) return send(response, 403, { ...LOCKED_ANSWER, error: "This workspace is locked to its signed-in members." });
+    if (incoming.members.some((member) => (stored.removedMemberIds || []).includes(member.id))) {
+      return send(response, 409, { error: "A former member cannot be restored from an old copy of this group. Reload and try again." });
+    }
   }
 
   const rev = payload?.rev;
@@ -376,6 +413,11 @@ async function handle(request, response) {
   // A full workspace save cannot appoint a manager. Only succession on a
   // verified departure changes this technical field.
   if (stored.ownerId) incoming.ownerId = successorId || stored.ownerId;
+  else if (incoming.members.some((member) => member.userId === authenticatedUser)) incoming.ownerId = authenticatedUser;
+  else delete incoming.ownerId;
+  incoming.removedMemberIds = stored.removedMemberIds || [];
+  if (stored.orphanedAt) incoming.orphanedAt = stored.orphanedAt;
+  else delete incoming.orphanedAt;
 
   // An organization stays busy/free only unless its owner changes the type.
   if (stored.kind === "organization" && incoming.kind !== "organization") {
