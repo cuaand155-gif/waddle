@@ -31,6 +31,7 @@ const KEYS = {
   push_subscriptions: ["endpoint"],
   analytics_daily: ["day", "metric"],
   notification_log: ["key"],
+  integration_tokens: ["user_id"],
 };
 
 const json = (status, body) => new Response(body === undefined ? null : JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });

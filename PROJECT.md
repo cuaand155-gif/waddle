@@ -29,6 +29,8 @@ These are ordered by dependency. The operator decisions belong to Alexi; app cha
 - [ ] **Phone sign-in:** choose an SMS provider and budget, then enable and test Supabase Phone Auth; or hide the text-code option until available. Friend requests by phone number already work separately from phone sign-in.
 - [ ] **Booking email:** after domain and sender setup, configure Resend and `RESEND_API_KEY` / `BOOKING_EMAIL_FROM`, then test confirmations and cancellations with controlled addresses. Booking works without email.
 
+- [ ] **Connect Waddle to LifeBoard.** A read-only, revocable account token and minimal plan/hangout feed are built; finish the LifeBoard client, deploy the token table and API, then create the link from the Waddle account dialog and connect it in LifeBoard. Keep the Waddle and LifeBoard databases separate.
+
 ## Later product work
 
 - [ ] **Direct friend invite links:** let a person accept a friend-specific invitation without a group link; prevent reuse and avoid exposing contact details.

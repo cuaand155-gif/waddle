@@ -362,6 +362,17 @@
         <p class="form-hint" id="phoneHint">No password: we text you a one-time code. Outside North America, start with + and your country code.</p>
       </form>
       <button class="outline-button full" id="signOutButton" hidden>Sign out</button>
+      <div id="lifeBoardTokenArea" hidden>
+        <h3>Connect LifeBoard</h3>
+        <p class="form-hint">Create a private read-only link for your upcoming plans and hangout dates. LifeBoard can show summaries; changes stay in Waddle. The link expires after 180 days, and creating a new one replaces the old one.</p>
+        <button class="outline-button full" id="createLifeBoardToken" type="button">Create LifeBoard link</button>
+        <div id="lifeBoardTokenOutput" hidden>
+          <label class="field-label" for="lifeBoardToken">Copy this token into LifeBoard</label>
+          <input class="text-input" id="lifeBoardToken" type="text" readonly spellcheck="false" autocomplete="off" />
+          <p class="form-hint">This token is shown once. Anyone who has it can read these summaries until it expires or you revoke it.</p>
+        </div>
+        <button class="outline-button full" id="revokeLifeBoardToken" type="button">Revoke LifeBoard link</button>
+      </div>
       <div id="deleteAccountArea" hidden>
         <p class="form-hint">Delete your account and linked data from Waddle's live records, including your group profile, availability, votes, comments, booking page and its bookings. Groups, shared plans, other people's messages and copies outside Waddle may remain.</p>
         <button class="outline-button full danger" id="deleteAccountButton" type="button">Delete my account</button>
