@@ -1655,6 +1655,28 @@ describe("account deletion", () => {
   });
 });
 
+describe("LifeBoard link", () => {
+  browserTest("creates, rotates and revokes a read-only account link", { signedIn: true, db: true }, async ({ page, go }) => {
+    await go("/");
+    await page.locator("#accountButton").click();
+    await page.locator("#openAccountFromProfile").click();
+    await page.locator("#createLifeBoardToken").click();
+    await page.locator("#lifeBoardTokenOutput").waitFor({ state: "visible" });
+    const first = await page.locator("#lifeBoardToken").inputValue();
+    assert.match(first, /^wdl_[A-Za-z0-9_-]{43}$/);
+    await page.locator("#createLifeBoardToken").click();
+    await page.waitForFunction((first) => document.querySelector("#lifeBoardToken")?.value !== first, first);
+    const second = await page.locator("#lifeBoardToken").inputValue();
+    assert.notEqual(second, first);
+    const stored = (await (await fetch(state.dbBase + "/__fake-db")).json()).integration_tokens || [];
+    assert.equal(stored.length, 1);
+    assert.doesNotMatch(JSON.stringify(stored), /wdl_/);
+    await page.locator("#revokeLifeBoardToken").click();
+    assert.equal(await page.locator("#lifeBoardTokenOutput").isHidden(), true);
+    assert.deepEqual((await (await fetch(state.dbBase + "/__fake-db")).json()).integration_tokens || [], []);
+  });
+});
+
 describe("home screen app", () => {
   browserTest("the service worker caches the shell, and the page opens with no connection", { serviceWorkers: true, allowErrors: /ERR_INTERNET_DISCONNECTED/ }, async ({ page, context, go }) => {
     await go("/");
