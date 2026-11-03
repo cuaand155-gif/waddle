@@ -29,6 +29,18 @@ alter table public.workspaces enable row level security;
 -- Workspaces are created on first visit by api/workspace.js, so no seed row is
 -- needed here. Visiting /?w=book-club creates "Book club" the first time.
 
+-- LifeBoard's read-only connection uses revocable, account-scoped tokens.
+-- Only the Waddle server holds the service-role access needed to read this table.
+create table if not exists public.integration_tokens (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  token_hash text not null unique check (token_hash ~ '^[a-f0-9]{64}$'),
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null
+);
+alter table public.integration_tokens enable row level security;
+revoke all on public.integration_tokens from anon, authenticated;
+grant select, insert, update, delete on public.integration_tokens to service_role;
+
 -- ---------------------------------------------------------------------------
 -- Accounts
 -- ---------------------------------------------------------------------------

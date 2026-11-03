@@ -2985,6 +2985,55 @@ $("signOutButton").addEventListener("click", async () => {
   showToast("Signed out on this device.");
 });
 
+$("createLifeBoardToken").addEventListener("click", async () => {
+  const button = $("createLifeBoardToken");
+  button.disabled = true;
+  try {
+    const token = await accessToken();
+    if (!token) throw new Error("Sign in to create the link.");
+    const response = await fetch("/api/integration", {
+      method: "POST", headers: { Authorization: "Bearer " + token },
+    });
+    const answer = await response.json().catch(() => ({}));
+    if (!response.ok || !answer.token) throw new Error(answer.error || "Could not create the link.");
+    $("lifeBoardToken").value = answer.token;
+    $("lifeBoardTokenOutput").hidden = false;
+    $("lifeBoardToken").focus();
+    $("lifeBoardToken").select();
+    showToast("LifeBoard link created. Copy it now.");
+  } catch (error) {
+    showToast(error?.message || "Could not create the link.");
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("revokeLifeBoardToken").addEventListener("click", async () => {
+  const button = $("revokeLifeBoardToken");
+  button.disabled = true;
+  try {
+    const token = await accessToken();
+    if (!token) throw new Error("Sign in to revoke the link.");
+    const response = await fetch("/api/integration", {
+      method: "DELETE", headers: { Authorization: "Bearer " + token },
+    });
+    const answer = await response.json().catch(() => ({}));
+    if (!response.ok || answer.revoked !== true) throw new Error(answer.error || "Could not revoke the link.");
+    $("lifeBoardToken").value = "";
+    $("lifeBoardTokenOutput").hidden = true;
+    showToast("LifeBoard link revoked.");
+  } catch (error) {
+    showToast(error?.message || "Could not revoke the link.");
+  } finally {
+    button.disabled = false;
+  }
+});
+
+$("accountDialog").addEventListener("close", () => {
+  $("lifeBoardToken").value = "";
+  $("lifeBoardTokenOutput").hidden = true;
+});
+
 $("deleteAccountButton").addEventListener("click", async () => {
   if (!supabaseClient || !ui.user) return;
   if (window.prompt("Delete your Waddle account and linked live records? Shared plans and other people's content may remain. Type DELETE to continue.") !== "DELETE") return;
@@ -3028,6 +3077,7 @@ function renderAccount(user) {
   $("phoneSignInForm").hidden = signedIn;
   $("signOutButton").hidden = !signedIn;
   $("deleteAccountArea").hidden = !signedIn;
+  $("lifeBoardTokenArea").hidden = !signedIn;
   $("accountCopy").textContent = signedIn
     ? "Your availability follows this account between devices."
     : "Sign in or create a free account to keep your groups and availability wherever you plan.";
