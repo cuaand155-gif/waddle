@@ -2,7 +2,7 @@
 
 Find the time everyone is actually free, then fill it with something worth doing.
 
-**Project context and running to-do list:** [PROJECT.md](PROJECT.md). For the full feature inventory, see [BLUEPRINT.md](BLUEPRINT.md); for public launch requirements, see [LAUNCH_READINESS.md](LAUNCH_READINESS.md).
+**Project context:** [canonical ai-system Waddle packet](https://github.com/cuaand155-gif/ai-system/blob/main/docs/projects/waddle/packet.md). The local running to-do list is [PROJECT.md](PROJECT.md). For the full feature inventory, see [BLUEPRINT.md](BLUEPRINT.md); for public launch requirements, see [LAUNCH_READINESS.md](LAUNCH_READINESS.md).
 
 Waddle is a small web app with no build step. A group shares one link; each
 person marks when they're busy — by hand or by importing a calendar — and the
