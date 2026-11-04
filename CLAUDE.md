@@ -1,5 +1,7 @@
 # Waddle (hangout-planner): rules from Alexi
 
+Before substantive project work, read the canonical [ai-system Waddle project packet](https://github.com/cuaand155-gif/ai-system/blob/main/docs/projects/waddle/packet.md) and its linked records, if present. Live task and status records are in Life Hub. Read [PROJECT.md](PROJECT.md) for this repo's running to-do list. If a source is inaccessible, record that gap instead of inventing its contents.
+
 Read this before changing anything that shows calendar events or sharing. These are product decisions Alexi made; keep them unless she changes them.
 
 ## Views: what each one shows

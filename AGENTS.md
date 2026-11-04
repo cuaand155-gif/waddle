@@ -1,0 +1,3 @@
+# Waddle agent start
+
+Before substantive Waddle project work, read the canonical [ai-system Waddle project packet](https://github.com/cuaand155-gif/ai-system/blob/main/docs/projects/waddle/packet.md) and its linked project records, if present. Live task and status records are in Life Hub. Then read this repo's [PROJECT.md](PROJECT.md), [BLUEPRINT.md](BLUEPRINT.md), and [CLAUDE.md](CLAUDE.md) for local state, feature evidence, and privacy rules. If a source is inaccessible, record that gap instead of inventing its contents.
